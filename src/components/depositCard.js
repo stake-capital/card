@@ -97,7 +97,7 @@ class DepositCard extends Component {
             <Tooltip
               disableFocusListener
               disableTouchListener
-              title="Because gas"
+              title="This covers gas fees."
             >
               <span>{`Deposit minimum of: ${minEth || ""} Eth.`}</span>
             </Tooltip>

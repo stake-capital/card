@@ -26,24 +26,72 @@ const styles = theme => ({
   }
 });
 
-const screens = (classes, minEth, minDai, maxEth, maxDai) => [
+const screens = (classes, minEth, minDai, maxEth, maxDai, copied) => [
   {
     title: "Welcome to Your Dai Card!",
-    message: "Here are some helpful tips to get you started with the next generation of payments."
+    message: `This is beta software, so if you run into any trouble 
+          please contact us via our Support chat (accessible in the Settings screen).`
   },
   {
-    title: "Beta Software",
-    message:
-      `This is beta software, and there are still bugs. Don't hesitate to contact us by going to Settings > Support if you find any!`
-  },
-  {
-    title: "Your Mnemonic",
-    message:
-      "This mnemonic is required to access your card's funds. It's available anytime via the settings page, be sure to write it down somewhere before you deposit money.",
+    title: "Your Recovery Phrase",
+    message: `This mnemonic will allow you to access your funds or import your wallet elsewhere.
+        Be sure to write it down before you deposit money.`,
     extra: (
       <Grid container style={{ padding: "2% 2% 2% 2%" }}>
         <CopyToClipboard
           text={localStorage.getItem("mnemonic")}
+          color="primary"
+        >
+          <Button
+            fullWidth
+            className={classes.button}
+            variant="outlined"
+            color="primary"
+            size="small"
+          >
+            <CopyIcon style={{ marginRight: "5px" }} />
+            <Typography noWrap={false} variant="body1" color="primary">
+              <Tooltip
+                disableFocusListener
+                disableTouchListener
+                title="Click to Copy"
+              >
+                <span>{localStorage.getItem("mnemonic")}</span>
+              </Tooltip>
+            </Typography>
+          </Button>
+        </CopyToClipboard>
+      </Grid>
+    )
+  },
+  {
+    title: "Adding funds - ETH",
+    message: (
+      <div>
+        <p>To get started, send some funds to the address above!</p>
+        <p>
+          <span style={{ fontWeight: "bold" }}>
+            Minimum deposit (covers gas costs):
+          </span>{" "}
+          {minEth || "?.??"} ETH (${minDai || "?.??"})<br />
+          <span style={{ fontWeight: "bold" }}>
+            Maximum deposit (for your protection):
+          </span>{" "}
+          {maxEth || "?.??"} ETH (${maxDai || "?.??"})
+        </p>
+      </div>
+    ),
+    message2: (
+      <p>
+        Don't have any ETH or need a refresher on how to send it?{" "}
+        <a href="https://www.coinbase.com/">Coinbase</a> is a good place to get
+        started.{" "}
+      </p>
+    ),
+    extra: (
+      <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+        <CopyToClipboard
+          text={localStorage.getItem("delegateSigner")}
           color="primary"
         >
           <Button
@@ -60,7 +108,7 @@ const screens = (classes, minEth, minDai, maxEth, maxDai) => [
                 disableTouchListener
                 title="Click to Copy"
               >
-                <span>{localStorage.getItem("mnemonic")}</span>
+                <span>{localStorage.getItem("delegateSigner")}</span>
               </Tooltip>
             </Typography>
           </Button>
@@ -69,18 +117,36 @@ const screens = (classes, minEth, minDai, maxEth, maxDai) => [
     )
   },
   {
-    title: "Deposit Boundaries",
-    message: `The card needs a minimum deposit of ${
-      minEth || "?.??"} eth (${
-      minDai || "?.??"}) to cover the gas costs of getting setup. Cards only accept deposits of ${
-      maxEth || "?.??"} eth (${
-      maxDai || "?.??"}) or less, with any excess eth getting refunded.`
-  },
-  {
-    title: "Depositing Tokens",
-    message: `If you want to deposit dai directly, there are no deposit maximums enforced! Just make sure to send at least ${
-      minEth || "?.??"} eth (${
-      minDai || "?.??"}) for gas to your new wallet.`
+    title: "Adding Funds - DAI",
+    message: `If you'd like to deposit DAI directly, there are no deposit maximums. However, make sure to also send at least ${minEth ||
+      "?.??"} ETH ($${minDai || "?.??"}) for gas.`,
+    extra: (
+      <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+        <CopyToClipboard
+          text={localStorage.getItem("delegateSigner")}
+          color="primary"
+        >
+          <Button
+            fullWidth
+            className={classes.button}
+            variant="outlined"
+            color="primary"
+            size="small"
+          >
+            <CopyIcon style={{ marginRight: "5px" }} />
+            <Typography noWrap variant="body1" color="primary">
+              <Tooltip
+                disableFocusListener
+                disableTouchListener
+                title="Click to Copy"
+              >
+                <span>{localStorage.getItem("delegateSigner")}</span>
+              </Tooltip>
+            </Typography>
+          </Button>
+        </CopyToClipboard>
+      </Grid>
+    )
   }
 ];
 
@@ -90,7 +156,8 @@ class SetupCard extends Component {
 
     this.state = {
       index: 0,
-      open: !localStorage.getItem("hasBeenWarned")
+      open: !localStorage.getItem("hasBeenWarned"),
+      copied: false
     };
   }
 
@@ -120,7 +187,7 @@ class SetupCard extends Component {
       browserMinimumBalance,
       maxTokenDeposit
     } = this.props;
-    const { index, open } = this.state;
+    const { index, open, copied } = this.state;
 
     // get proper display values
     // max token in BEI, min in wei and DAI
@@ -151,7 +218,7 @@ class SetupCard extends Component {
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
 
-    const display = screens(classes, minEth, minDai, maxEth, maxDai);
+    const display = screens(classes, minEth, minDai, maxEth, maxDai, copied);
 
     const isFinal = index === display.length - 1;
 
@@ -181,7 +248,6 @@ class SetupCard extends Component {
               <Grid item xs={12}>
                 <DialogTitle variant="h5">{display[index].title}</DialogTitle>
               </Grid>
-
               {display[index].extra && (
                 <Grid item xs={12}>
                   {display[index].extra}
@@ -193,6 +259,11 @@ class SetupCard extends Component {
                   <DialogContentText variant="body1">
                     {display[index].message}
                   </DialogContentText>
+                  {display[index].message2 ? (
+                    <DialogContentText variant="body1">
+                      {display[index].message2}
+                    </DialogContentText>
+                  ) : null}
                 </Grid>
 
                 <Grid item xs={12}>
