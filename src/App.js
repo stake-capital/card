@@ -157,6 +157,7 @@ class App extends React.Component {
   // ************************************************* //
 
   async walletGen(pin) {
+    const mnemonic = localStorage.getItem("mnemonic");
     const encryptedMnemonic = encryptMnemonic(mnemonic, pin)
     const delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
     const address = await delegateSigner.getAddressString();

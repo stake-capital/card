@@ -11,7 +11,8 @@ import {
   DialogContentText,
   LinearProgress,
   Tooltip,
-  Input
+  Input,
+  TextField
 } from "@material-ui/core";
 import { CurrencyType } from "connext/dist/state/ConnextState/CurrencyTypes";
 import getExchangeRates from "connext/dist/lib/getExchangeRates";
@@ -54,156 +55,226 @@ const styles = theme => ({
 
 */
 
-function onSubmit(mnemonic, pin) {
+// Login with pin
+function onSubmitInputPin(pin){
+  try{
+    this.props.walletGen(pin)
+  }catch(e){
+    console.log(`walletGen error`);
+    alert(`Password incorrect`);
+  }
+}
+
+// Pin setup 
+function onSubmitOnboardOrCreate(mnemonic, pin, pin2) {
   if(!localStorage.getItem("encryptedMnemonic")){
     if(localStorage.getItem("mnemonic")){
       mnemonic = localStorage.getItem("mnemonic")
     }
     this.props.encryptMnemonic(mnemonic, pin)
   }
-  this.props.walletGen(pin)
+  const passwordValidated = validatePassword(pin,pin2)
+  if(passwordValidated){
+    this.props.walletGen(pin)
+  }else{
+    alert(`Passwords don't match. Please try again!`)
+  }
 }
 
-const screens = (classes, minEth, minDai, maxEth, maxDai, copied) => [
-  {
-    title: "Welcome to Your Dai Card!",
-    message: `This is beta software, so if you run into any trouble 
-          please contact us via our Support chat (accessible in the Settings screen).`
-  },
-  {
-    title: "Your Recovery Phrase and Password",
-    message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
-    extra: (
-      <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-        <CopyToClipboard
-          text={mnemonic}
-          color="primary"
-        >
-          <Button
-            fullWidth
-            className={classes.button}
-            variant="outlined"
-            color="primary"
-            size="small"
-          >
-            <CopyIcon style={{ marginRight: "5px" }} />
-            <Typography noWrap={false} variant="body1" color="primary">
-              <Tooltip
-                disableFocusListener
-                disableTouchListener
-                title="Click to Copy"
-              >
-                <span>{mnemonic}</span>
-              </Tooltip>
-            </Typography>
-          </Button>
-        </CopyToClipboard>
-        <Typography>
-          To continue, please set a password. You will be prompted for this password every time you access your card. We can't recover this password for you, so don't forget it!
-        </Typography>
-        <TextField
-          id="filled-password-input"
-          label="Password"
-          type="password"
-          margin="normal"
-          variant="filled"
-        />
-        <TextField
-          id="filled-password-input"
-          label="Password (again)"
-          className={classes.textField}
-          type="password"
-          margin="normal"
-          variant="filled"
-        />
-      </Grid>
-    )
-  },
-  {
-    title: "Adding funds - ETH",
-    message: (
-      <div>
-        <p>To get started, send some funds to the address above!</p>
-        <p>
-          <span style={{ fontWeight: "bold" }}>
-            Minimum deposit (covers gas costs):
-          </span>{" "}
-          {minEth || "?.??"} ETH (${minDai || "?.??"})<br />
-          <span style={{ fontWeight: "bold" }}>
-            Maximum deposit (for your protection):
-          </span>{" "}
-          {maxEth || "?.??"} ETH (${maxDai || "?.??"})
-        </p>
-      </div>
-    ),
-    message2: (
-      <p>
-        Don't have any ETH or need a refresher on how to send it?{" "}
-        <a href="https://www.coinbase.com/">Coinbase</a> is a good place to get
-        started.{" "}
-      </p>
-    ),
-    extra: (
-      <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-        <CopyToClipboard
-          text={localStorage.getItem("delegateSigner")}
-          color="primary"
-        >
-          <Button
-            fullWidth
-            className={classes.button}
-            variant="outlined"
-            color="primary"
-            size="small"
-          >
-            <CopyIcon style={{ marginRight: "5px" }} />
-            <Typography noWrap variant="body1" color="primary">
-              <Tooltip
-                disableFocusListener
-                disableTouchListener
-                title="Click to Copy"
-              >
-                <span>{localStorage.getItem("delegateSigner")}</span>
-              </Tooltip>
-            </Typography>
-          </Button>
-        </CopyToClipboard>
-      </Grid>
-    )
-  },
-  {
-    title: "Adding Funds - DAI",
-    message: `If you'd like to deposit DAI directly, there are no deposit maximums. However, make sure to also send at least ${minEth ||
-      "?.??"} ETH ($${minDai || "?.??"}) for gas.`,
-    extra: (
-      <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-        <CopyToClipboard
-          text={localStorage.getItem("delegateSigner")}
-          color="primary"
-        >
-          <Button
-            fullWidth
-            className={classes.button}
-            variant="outlined"
-            color="primary"
-            size="small"
-          >
-            <CopyIcon style={{ marginRight: "5px" }} />
-            <Typography noWrap variant="body1" color="primary">
-              <Tooltip
-                disableFocusListener
-                disableTouchListener
-                title="Click to Copy"
-              >
-                <span>{localStorage.getItem("delegateSigner")}</span>
-              </Tooltip>
-            </Typography>
-          </Button>
-        </CopyToClipboard>
-      </Grid>
-    )
+function validatePassword(pin1, pin2){
+  if(pin1 === pin2){
+    return true;
   }
-];
+  return false;
+}
+
+function onboardingScreens(setupType, classes, minEth, minDai, maxEth, maxDai, copied, mnemonic, pin, pin2){
+
+if(setupType == "onboard" || setupType == "createPin"){
+    const screens = (classes, minEth, minDai, maxEth, maxDai, copied, mnemonic, pin, pin2) => [
+      {
+        title: "Welcome to Your Dai Card!",
+        message: `This is beta software, so if you run into any trouble 
+              please contact us via our Support chat (accessible in the Settings screen).`
+      },
+      {
+        title: "Your Recovery Phrase and Password",
+        message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
+        extra: (
+          <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+            <CopyToClipboard
+              text={mnemonic}
+              color="primary"
+            >
+              <Button
+                fullWidth
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+              >
+                <CopyIcon style={{ marginRight: "5px" }} />
+                <Typography noWrap={false} variant="body1" color="primary">
+                  <Tooltip
+                    disableFocusListener
+                    disableTouchListener
+                    title="Click to Copy"
+                  >
+                    <span>{mnemonic}</span>
+                  </Tooltip>
+                </Typography>
+              </Button>
+            </CopyToClipboard>
+            <Typography>
+              To continue, please set a password. You will be prompted for this password every time you access your card. We can't recover this password for you, so don't forget it!
+            </Typography>
+            <TextField
+              id="filled-password-input"
+              label="Password"
+              type="password"
+              margin="normal"
+              variant="filled"
+              onChange={(evt)=>this.setState({pin: evt.target.value})}
+            />
+            <TextField
+              id="filled-password-input"
+              label="Password (again)"
+              className={classes.textField}
+              type="password"
+              margin="normal"
+              onChange={(evt)=>this.setState({pin2: evt.target.value})}
+              variant="filled"
+            />
+            <Button
+                fullWidth
+                onClick={() => this.onSubmit(mnemonic, pin, pin2)}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                text="Submit"
+              />
+          </Grid>
+        )
+      },
+      {
+        title: "Adding funds - ETH",
+        message: (
+          <div>
+            <p>To get started, send some funds to the address above!</p>
+            <p>
+              <span style={{ fontWeight: "bold" }}>
+                Minimum deposit (covers gas costs):
+              </span>{" "}
+              {minEth || "?.??"} ETH (${minDai || "?.??"})<br />
+              <span style={{ fontWeight: "bold" }}>
+                Maximum deposit (for your protection):
+              </span>{" "}
+              {maxEth || "?.??"} ETH (${maxDai || "?.??"})
+            </p>
+          </div>
+        ),
+        message2: (
+          <p>
+            Don't have any ETH or need a refresher on how to send it?{" "}
+            <a href="https://www.coinbase.com/">Coinbase</a> is a good place to get
+            started.{" "}
+          </p>
+        ),
+        extra: (
+          <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+            <CopyToClipboard
+              text={localStorage.getItem("delegateSigner")}
+              color="primary"
+            >
+              <Button
+                fullWidth
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+              >
+                <CopyIcon style={{ marginRight: "5px" }} />
+                <Typography noWrap variant="body1" color="primary">
+                  <Tooltip
+                    disableFocusListener
+                    disableTouchListener
+                    title="Click to Copy"
+                  >
+                    <span>{localStorage.getItem("delegateSigner")}</span>
+                  </Tooltip>
+                </Typography>
+              </Button>
+            </CopyToClipboard>
+          </Grid>
+        )
+      },
+      {
+        title: "Adding Funds - DAI",
+        message: `If you'd like to deposit DAI directly, there are no deposit maximums. However, make sure to also send at least ${minEth ||
+          "?.??"} ETH ($${minDai || "?.??"}) for gas.`,
+        extra: (
+          <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+            <CopyToClipboard
+              text={localStorage.getItem("delegateSigner")}
+              color="primary"
+            >
+              <Button
+                fullWidth
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+              >
+                <CopyIcon style={{ marginRight: "5px" }} />
+                <Typography noWrap variant="body1" color="primary">
+                  <Tooltip
+                    disableFocusListener
+                    disableTouchListener
+                    title="Click to Copy"
+                  >
+                    <span>{localStorage.getItem("delegateSigner")}</span>
+                  </Tooltip>
+                </Typography>
+              </Button>
+            </CopyToClipboard>
+          </Grid>
+        )
+      }
+    ];
+    return screens(classes, minEth, minDai, maxEth, maxDai, copied, mnemonic, pin, pin2);
+  }else if(setupType == "inputPin"){
+    const screens = (pin) => [
+      {
+        title: "Welcome!",
+        message: `Please enter your password`,
+        extra: (
+          <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+            <TextField
+              id="filled-password-input"
+              label="Password"
+              type="password"
+              margin="normal"
+              variant="filled"
+              onChange={(evt)=>this.setState({pin: evt.target.value})}
+            />
+            <Button
+                fullWidth
+                onClick={() => this.onSubmitInputPin(pin)}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                text="Submit"
+              />
+          </Grid>
+        )
+      },]
+      return screens(pin);
+  }else{
+    throw 'error creating onboarding screens'
+  }
+}
 
 class SetupCard extends Component {
   constructor(props) {
@@ -213,7 +284,9 @@ class SetupCard extends Component {
       index: 0,
       open: this.props.setup,
       type: this.props.setupType,
-      copied: false
+      copied: false,
+      pin:null,
+      pin2:null
     };
   }
 
@@ -236,13 +309,15 @@ class SetupCard extends Component {
   };
 
   render() {
+    console.log(this.props.setupType);
     const {
       classes,
       connextState,
       browserMinimumBalance,
-      maxTokenDeposit
+      maxTokenDeposit,
+      setupType
     } = this.props;
-    const { index, open, copied } = this.state;
+    const { index, open, copied, pin, pin2 } = this.state;
 
     // get proper display values
     // max token in BEI, min in wei and DAI
@@ -273,9 +348,9 @@ class SetupCard extends Component {
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
 
-    let mnemonic = this.props.generateMnemonic();
+    let mnemonic = this.props.generateMnemonic;
 
-    const display = screens(classes, minEth, minDai, maxEth, maxDai, copied);
+    const display = onboardingScreens(setupType, classes, minEth, minDai, maxEth, maxDai, copied, mnemonic);
 
     const isFinal = index === display.length - 1;
 

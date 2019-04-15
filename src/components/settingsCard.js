@@ -19,7 +19,7 @@ import {
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import CopyIcon from "@material-ui/icons/FileCopy";
 import SubmitIcon from "@material-ui/icons/ArrowRight";
-import { createWallet, createWalletFromMnemonic } from "../utils/walletGen";
+import { getWalletFromEncryptedMnemonic, createWallet, createWalletFromMnemonic } from "../utils/walletGen";
 import SettingsIcon from "@material-ui/icons/Settings";
 import MySnackbar from "./snackBar";
 import interval from "interval-promise";
@@ -53,7 +53,7 @@ class SettingsCard extends Component {
 
     this.state = {
       showRecovery: false,
-      inputRecovery: false,
+      inputRecovery: false, 
       rpc: localStorage.getItem("rpc-prod"),
       mnemonic: '',
       copied: false,
@@ -79,7 +79,7 @@ class SettingsCard extends Component {
     } catch (e) {
       console.log("Error withdrawing, creating new address anyway", e.message);
     } finally {
-      await createWallet(this.state.web3);
+     // await createWallet(this.state.web3);
       this.burnRefreshPoller();
     }
   };
@@ -101,8 +101,8 @@ class SettingsCard extends Component {
     window.location.reload();
   };
 
-  async recoverAddressFromMnemonic() {
-    await createWalletFromMnemonic(this.state.mnemonic);
+  async recoverAddressFromMnemonic() { 
+    await getWalletFromEncryptedMnemonic(this.state.mnemonic);
     window.location.reload();
   }
 

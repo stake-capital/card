@@ -12,7 +12,13 @@ export async function generateMnemonic() {
 export async function getWalletFromEncryptedMnemonic(encryptedMnemonic, secret) {
   let wallet;
   try {
-    const mnemonic = decryptMnemonic(encryptedMnemonic, secret);
+    let mnemonic;
+    if(secret){
+      mnemonic = decryptMnemonic(encryptedMnemonic, secret);
+    }else{
+      // catch for recovering from mnemonic on settings page
+      mnemonic = encryptedMnemonic
+    }
     const seed = bip39.mnemonicToSeed(mnemonic);
     wallet = await hdkey
       .fromMasterSeed(seed)
