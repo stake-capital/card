@@ -56,42 +56,63 @@ const styles = theme => ({
 */
 
 // Login with pin
-function onSubmitInputPin(pin){
-  try{
-    this.props.walletGen(pin)
-  }catch(e){
+function onSubmitInputPin(pin) {
+  try {
+    this.props.walletGen(pin);
+    this.handleClose()
+  } catch (e) {
     console.log(`walletGen error`);
     alert(`Password incorrect`);
   }
 }
 
-// Pin setup 
+// Pin setup
 function onSubmitOnboardOrCreate(mnemonic, pin, pin2) {
-  if(!localStorage.getItem("encryptedMnemonic")){
-    if(localStorage.getItem("mnemonic")){
-      mnemonic = localStorage.getItem("mnemonic")
+  if (!localStorage.getItem("encryptedMnemonic")) {
+    if (localStorage.getItem("mnemonic")) {
+      mnemonic = localStorage.getItem("mnemonic");
     }
-    this.props.encryptMnemonic(mnemonic, pin)
+    this.props.encryptMnemonic(mnemonic, pin);
   }
-  const passwordValidated = validatePassword(pin,pin2)
-  if(passwordValidated){
-    this.props.walletGen(pin)
-  }else{
-    alert(`Passwords don't match. Please try again!`)
+  const passwordValidated = validatePassword(pin, pin2);
+  if (passwordValidated) {
+    this.props.walletGen(pin);
+  } else {
+    alert(`Passwords don't match. Please try again!`);
   }
 }
 
-function validatePassword(pin1, pin2){
-  if(pin1 === pin2){
+function validatePassword(pin1, pin2) {
+  if (pin1 === pin2) {
     return true;
   }
   return false;
 }
 
-function onboardingScreens(setupType, classes, minEth, minDai, maxEth, maxDai, copied, mnemonic, pin, pin2){
-
-if(setupType == "onboard" || setupType == "createPin"){
-    const screens = (classes, minEth, minDai, maxEth, maxDai, copied, mnemonic, pin, pin2) => [
+function onboardingScreens(
+  setupType,
+  classes,
+  minEth,
+  minDai,
+  maxEth,
+  maxDai,
+  copied,
+  mnemonic,
+  pin,
+  pin2
+) {
+  if (setupType == "onboard" || setupType == "createPin") {
+    const screens = (
+      classes,
+      minEth,
+      minDai,
+      maxEth,
+      maxDai,
+      copied,
+      mnemonic,
+      pin,
+      pin2
+    ) => [
       {
         title: "Welcome to Your Dai Card!",
         message: `This is beta software, so if you run into any trouble 
@@ -102,10 +123,7 @@ if(setupType == "onboard" || setupType == "createPin"){
         message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
         extra: (
           <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-            <CopyToClipboard
-              text={mnemonic}
-              color="primary"
-            >
+            <CopyToClipboard text={mnemonic} color="primary">
               <Button
                 fullWidth
                 className={classes.button}
@@ -126,7 +144,9 @@ if(setupType == "onboard" || setupType == "createPin"){
               </Button>
             </CopyToClipboard>
             <Typography>
-              To continue, please set a password. You will be prompted for this password every time you access your card. We can't recover this password for you, so don't forget it!
+              To continue, please set a password. You will be prompted for this
+              password every time you access your card. We can't recover this
+              password for you, so don't forget it!
             </Typography>
             <TextField
               id="filled-password-input"
@@ -134,7 +154,7 @@ if(setupType == "onboard" || setupType == "createPin"){
               type="password"
               margin="normal"
               variant="filled"
-              onChange={(evt)=>this.setState({pin: evt.target.value})}
+              onChange={evt => this.setState({ pin: evt.target.value })}
             />
             <TextField
               id="filled-password-input"
@@ -142,18 +162,19 @@ if(setupType == "onboard" || setupType == "createPin"){
               className={classes.textField}
               type="password"
               margin="normal"
-              onChange={(evt)=>this.setState({pin2: evt.target.value})}
+              onChange={evt => this.setState({ pin2: evt.target.value })}
               variant="filled"
             />
             <Button
-                fullWidth
-                onClick={() => this.onSubmit(mnemonic, pin, pin2)}
-                className={classes.button}
-                variant="outlined"
-                color="primary"
-                size="small"
-                text="Submit"
-              />
+              onClick={() => this.onSubmit(mnemonic, pin, pin2)}
+              className={classes.button}
+              variant="outlined"
+              color="primary"
+              size="medium"
+              text="Submit"
+            >
+              Submit
+            </Button>
           </Grid>
         )
       },
@@ -177,8 +198,8 @@ if(setupType == "onboard" || setupType == "createPin"){
         message2: (
           <p>
             Don't have any ETH or need a refresher on how to send it?{" "}
-            <a href="https://www.coinbase.com/">Coinbase</a> is a good place to get
-            started.{" "}
+            <a href="https://www.coinbase.com/">Coinbase</a> is a good place to
+            get started.{" "}
           </p>
         ),
         extra: (
@@ -242,9 +263,19 @@ if(setupType == "onboard" || setupType == "createPin"){
         )
       }
     ];
-    return screens(classes, minEth, minDai, maxEth, maxDai, copied, mnemonic, pin, pin2);
-  }else if(setupType == "inputPin"){
-    const screens = (pin) => [
+    return screens(
+      classes,
+      minEth,
+      minDai,
+      maxEth,
+      maxDai,
+      copied,
+      mnemonic,
+      pin,
+      pin2
+    );
+  } else if (setupType == "inputPin") {
+    const screens = pin => [
       {
         title: "Welcome!",
         message: `Please enter your password`,
@@ -256,23 +287,24 @@ if(setupType == "onboard" || setupType == "createPin"){
               type="password"
               margin="normal"
               variant="filled"
-              onChange={(evt)=>this.setState({pin: evt.target.value})}
+              onChange={evt => this.setState({ pin: evt.target.value })}
             />
             <Button
-                fullWidth
-                onClick={() => this.onSubmitInputPin(pin)}
-                className={classes.button}
-                variant="outlined"
-                color="primary"
-                size="small"
-                text="Submit"
-              />
+              
+              onClick={() => this.onSubmitInputPin(pin)}
+              className={classes.button}
+              variant="outlined"
+              color="primary"
+              size="medium"
+              style={{height:"40px"}}
+            >Submit</Button>
           </Grid>
         )
-      },]
-      return screens(pin);
-  }else{
-    throw 'error creating onboarding screens'
+      }
+    ];
+    return screens(pin);
+  } else {
+    throw "error creating onboarding screens";
   }
 }
 
@@ -282,11 +314,11 @@ class SetupCard extends Component {
 
     this.state = {
       index: 0,
-      open: this.props.setup,
+      open: true, //this.props.setup,
       type: this.props.setupType,
       copied: false,
-      pin:null,
-      pin2:null
+      pin: null,
+      pin2: null
     };
   }
 
@@ -350,7 +382,17 @@ class SetupCard extends Component {
 
     let mnemonic = this.props.generateMnemonic;
 
-    const display = onboardingScreens(setupType, classes, minEth, minDai, maxEth, maxDai, copied, mnemonic);
+    //setup type
+    const display = onboardingScreens(
+      "inputPin",
+      classes,
+      minEth,
+      minDai,
+      maxEth,
+      maxDai,
+      copied,
+      mnemonic
+    );
 
     const isFinal = index === display.length - 1;
 
@@ -400,6 +442,7 @@ class SetupCard extends Component {
 
                 <Grid item xs={12}>
                   <DialogActions style={{ padding: "2% 2% 2% 2%" }}>
+                  {setupType=="inputPin"? (<Grid>
                     {index !== 0 && (
                       <Button
                         onClick={this.handleClickPrevious}
@@ -431,7 +474,7 @@ class SetupCard extends Component {
                       >
                         Next
                       </Button>
-                    )}
+                    )}</Grid>):(null)}
                   </DialogActions>
                 </Grid>
               </DialogContent>
