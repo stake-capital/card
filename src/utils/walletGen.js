@@ -2,48 +2,66 @@ import { store } from "../App";
 // import * as ethers from "ethers";
 const bip39 = require("bip39");
 const hdkey = require("ethereumjs-wallet/hdkey");
+const CryptoJS = require("crypto-js");
 
-export async function createWallet(web3) {
+// Called if !encryptedMnemonic
+export async function createWallet(secret) {
   const mnemonic = bip39.generateMnemonic();
   const seed = bip39.mnemonicToSeed(mnemonic);
   const wallet = await hdkey
     .fromMasterSeed(seed)
     .derivePath("m/44'/60'/0'/0/0")
     .getWallet();
-  // const wallet = await web3.eth.accounts.create()
+
+  const encryptedMnemonic = encryptMnemonic(mnemonic, secret)
+
   localStorage.setItem("delegateSigner", wallet.getAddressString());
-  localStorage.setItem("mnemonic", mnemonic);
-  localStorage.setItem("privateKey", wallet.getPrivateKeyString());
+  localStorage.setItem("encryptedMnemonic", encryptedMnemonic)
 
   // update refunding variable on burn
   localStorage.removeItem("refunding");
   localStorage.removeItem("maxBalanceAfterRefund");
+  // remove legacy mnemonic/pk from local storage
+  localStorage.removeItem("mnemonic")
+  localStorage.removeItem("privateKey")
 
-  // also force to go through tutorial on each new
-  // wallet creation 
-  localStorage.removeItem("hasBeenWarned");
-  return wallet;
+  // // also force to go through tutorial on each new
+  // // wallet creation 
+  // localStorage.removeItem("hasBeenWarned");
+  return {wallet, mnemonic};
 }
 
-export async function createWalletFromMnemonic(mnemonic) {
+// Called if encryptedMnemonic
+export async function recoverWallet(encryptedMnemonic, secret) {
   let wallet;
   try {
+    const mnemonic = decryptMnemonic(encryptedMnemonic, secret);
     const seed = bip39.mnemonicToSeed(mnemonic);
     wallet = await hdkey
       .fromMasterSeed(seed)
       .derivePath("m/44'/60'/0'/0/0")
       .getWallet();
-    localStorage.setItem("delegateSigner", wallet.getAddressString());
-    localStorage.setItem("mnemonic", mnemonic);
-    localStorage.setItem("privateKey", wallet.getPrivateKeyString());
     // update refunding variable on import
     localStorage.removeItem("refunding");
     localStorage.removeItem("maxBalanceAfterRefund");
+    // remove legacy mnemonic/pk from local storage
+    localStorage.removeItem("mnemonic")
+    localStorage.removeItem("privateKey")
+    
     return wallet;
   } catch (e) {
     console.log(`error in WalletGen`);
     console.log(e);
   }
+}
+
+export function decryptMnemonic(encryptedMnemonic, secret) {
+  const bytes  = CryptoJS.AES.decrypt(encryptedMnemonic, secret);
+  return bytes.toString(CryptoJS.enc.Utf8);
+}
+
+export function encryptMnemonic(mnemonic, secret) {
+  return CryptoJS.AES.encrypt(mnemonic, secret).toString();
 }
 
 export function getStore() {
