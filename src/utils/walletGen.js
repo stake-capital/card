@@ -4,35 +4,12 @@ const bip39 = require("bip39");
 const hdkey = require("ethereumjs-wallet/hdkey");
 const CryptoJS = require("crypto-js");
 
-// Called if !encryptedMnemonic
-export async function createWallet(secret) {
+export async function generateMnemonic() {
   const mnemonic = bip39.generateMnemonic();
-  const seed = bip39.mnemonicToSeed(mnemonic);
-  const wallet = await hdkey
-    .fromMasterSeed(seed)
-    .derivePath("m/44'/60'/0'/0/0")
-    .getWallet();
-
-  const encryptedMnemonic = encryptMnemonic(mnemonic, secret)
-
-  localStorage.setItem("delegateSigner", wallet.getAddressString());
-  localStorage.setItem("encryptedMnemonic", encryptedMnemonic)
-
-  // update refunding variable on burn
-  localStorage.removeItem("refunding");
-  localStorage.removeItem("maxBalanceAfterRefund");
-  // remove legacy mnemonic/pk from local storage
-  localStorage.removeItem("mnemonic")
-  localStorage.removeItem("privateKey")
-
-  // // also force to go through tutorial on each new
-  // // wallet creation 
-  // localStorage.removeItem("hasBeenWarned");
-  return {wallet, mnemonic};
+  return mnemonic;
 }
 
-// Called if encryptedMnemonic
-export async function recoverWallet(encryptedMnemonic, secret) {
+export async function getWalletFromEncryptedMnemonic(encryptedMnemonic, secret) {
   let wallet;
   try {
     const mnemonic = decryptMnemonic(encryptedMnemonic, secret);
@@ -41,12 +18,13 @@ export async function recoverWallet(encryptedMnemonic, secret) {
       .fromMasterSeed(seed)
       .derivePath("m/44'/60'/0'/0/0")
       .getWallet();
+
+    // set in case this is first call
+    localStorage.setItem("delegateSigner", wallet.getAddressString());
+    localStorage.setItem("encryptedMnemonic", encryptedMnemonic)
     // update refunding variable on import
     localStorage.removeItem("refunding");
     localStorage.removeItem("maxBalanceAfterRefund");
-    // remove legacy mnemonic/pk from local storage
-    localStorage.removeItem("mnemonic")
-    localStorage.removeItem("privateKey")
     
     return wallet;
   } catch (e) {

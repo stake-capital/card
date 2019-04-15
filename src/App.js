@@ -8,7 +8,7 @@ import DepositCard from "./components/depositCard";
 import { getConnextClient } from "connext/dist/Connext.js";
 import ProviderOptions from "./utils/ProviderOptions.ts";
 import clientProvider from "./utils/web3/clientProvider.ts";
-import { createWalletFromMnemonic, createWallet } from "./utils/walletGen";
+import { getWalletFromEncryptedMnemonic, generateMnemonic, encryptMnemonic, decryptMnemonic } from "./utils/walletGen";
 import { Paper, withStyles, Grid } from "@material-ui/core";
 import AppBarComponent from "./components/AppBar";
 import SettingsCard from "./components/settingsCard";
@@ -25,6 +25,7 @@ import CurrencyConvertable from "connext/dist/lib/currency/CurrencyConvertable";
 import getExchangeRates from "connext/dist/lib/getExchangeRates";
 import MySnackbar from "./components/snackBar";
 import interval from "interval-promise";
+import { isNull } from "util";
 
 export const store = createStore(setWallet, null);
 
@@ -136,45 +137,61 @@ class App extends React.Component {
     publicUrl = window.location.origin.toLowerCase();
 
     // Set up state
-    const mnemonic = localStorage.getItem("mnemonic");
+    const encryptedMnemonic = localStorage.getItem("encryptedMnemonic");
     // on mount, check if you need to refund by removing maxBalance
     localStorage.removeItem("refunding");
-    let rpc = localStorage.getItem("rpc-prod");
-    // TODO: better way to set default provider
-    // if it doesnt exist in storage
-    if (!rpc) {
-      rpc = env === "development" ? "LOCALHOST" : "MAINNET";
-      localStorage.setItem("rpc-prod", rpc);
-    }
-    // If a browser address exists, create wallet
-    if (mnemonic) {
-      const delegateSigner = await createWalletFromMnemonic(mnemonic);
-      const address = await delegateSigner.getAddressString();
-      this.setState({ delegateSigner, address });
-      store.dispatch({
-        type: "SET_WALLET",
-        text: delegateSigner
-      });
-
-      await this.setWeb3(rpc);
-      await this.setConnext();
-      await this.setTokenContract();
-
-      await this.pollConnextState();
-      await this.setBrowserWalletMinimumBalance();
-      await this.poller();
+    // If mnemonic already exists
+    if (encryptedMnemonic) {
+      // set pin prompt state true
+    } else if (!encryptedMnemonic && localStorage.getItem("mnemonic")) {
+      // set pin prompt state true and legacy state true
     } else {
-      // Else, we create a new address
-      const delegateSigner = await createWallet(this.state.web3);
-      const address = await delegateSigner.getAddressString();
-      this.setState({ delegateSigner, address });
-      store.dispatch({
-        type: "SET_WALLET",
-        text: delegateSigner
-      });
-      // Then refresh the page
-      window.location.reload();
+      // show onboarding UI
     }
+  }
+
+  // ************************************************* //
+  //                     Wallet Gen                    //
+  // ************************************************* //
+
+  async walletGen(secret, mnemonic) {
+    let delegateSigner, address, encryptedMnemonic
+
+    // If legacy
+    if(localStorage.getItem("mnemonic")){
+      mnemonic = localStorage.getItem("mnemonic")
+    }
+
+    // If a mnemonic exists, encrypt it
+    if(mnemonic){
+      encryptedMnemonic = encryptMnemonic(mnemonic, secret)
+    } else if (localStorage.getItem("encryptedMnemonic")) {
+      encryptedMnemonic = localStorage.getItem("encryptedMnemonic")
+    } else {
+      // THIS SHOULD NEVER HAPPEN
+      console.log("ERROR! No mnemonic generated or in local storage. THIS SHOULD NEVER HAPPEN.")
+    }
+
+    delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, secret);
+    address = await delegateSigner.getAddressString();
+
+    // In case these exist, remove them
+    localStorage.removeItem("mnemonic")
+    localStorage.removeItem("privateKey")
+
+    this.setState({ delegateSigner, address });
+    store.dispatch({
+      type: "SET_WALLET",
+      text: delegateSigner
+    });
+
+    await this.setWeb3();
+    await this.setConnext();
+    await this.setTokenContract();
+
+    await this.pollConnextState();
+    await this.setBrowserWalletMinimumBalance();
+    await this.poller();
   }
 
   // ************************************************* //
@@ -195,8 +212,15 @@ class App extends React.Component {
     return;
   }
 
-  // either LOCALHOST MAINNET or RINKEBY
-  async setWeb3(rpc) {
+  async setWeb3() {
+    let rpc = localStorage.getItem("rpc-prod");
+    // TODO: better way to set default provider
+    // if it doesnt exist in storage
+    if (!rpc) {
+      rpc = env === "development" ? "LOCALHOST" : "MAINNET";
+      localStorage.setItem("rpc-prod", rpc);
+    }
+
     let rpcUrl, hubUrl;
     switch (rpc) {
       case "LOCALHOST":
