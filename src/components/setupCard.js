@@ -10,7 +10,8 @@ import {
   Typography,
   DialogContentText,
   LinearProgress,
-  Tooltip
+  Tooltip,
+  Input
 } from "@material-ui/core";
 import { CurrencyType } from "connext/dist/state/ConnextState/CurrencyTypes";
 import getExchangeRates from "connext/dist/lib/getExchangeRates";
@@ -26,6 +27,43 @@ const styles = theme => ({
   }
 });
 
+// How should setup card work?
+
+/*
+  open card based on if setupType is not null
+
+  1. If setupType is onboard
+    a. Show Dai Card intro screen with mnemonic
+    b. Show pin component
+    c. Show pin component again and make sure pin is correct
+      i. on submit, encrypt mnemonic and save to localStorage
+      ii. call walletGen with pin
+    d. Show min/max
+
+  2. If setupType is createPin (legacy)
+    a. Show message screen
+    b. Show pin component
+    c. Show pin component again and make sure pin is correct
+      i. on submit, recover mnemonic from local storage
+      ii. encrypt mnemonic and save to localStorage
+      iii. call walletGen with pin
+
+  3. If setupType is inputPin
+    a. Show pin 
+      i. on submit, call walletGen with pin
+
+*/
+
+function onSubmit(mnemonic, pin) {
+  if(!localStorage.getItem("encryptedMnemonic")){
+    if(localStorage.getItem("mnemonic")){
+      mnemonic = localStorage.getItem("mnemonic")
+    }
+    this.props.encryptMnemonic(mnemonic, pin)
+  }
+  this.props.walletGen(pin)
+}
+
 const screens = (classes, minEth, minDai, maxEth, maxDai, copied) => [
   {
     title: "Welcome to Your Dai Card!",
@@ -33,13 +71,12 @@ const screens = (classes, minEth, minDai, maxEth, maxDai, copied) => [
           please contact us via our Support chat (accessible in the Settings screen).`
   },
   {
-    title: "Your Recovery Phrase",
-    message: `This mnemonic will allow you to access your funds or import your wallet elsewhere.
-        Be sure to write it down before you deposit money.`,
+    title: "Your Recovery Phrase and Password",
+    message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
     extra: (
       <Grid container style={{ padding: "2% 2% 2% 2%" }}>
         <CopyToClipboard
-          text={localStorage.getItem("mnemonic")}
+          text={mnemonic}
           color="primary"
         >
           <Button
@@ -56,11 +93,29 @@ const screens = (classes, minEth, minDai, maxEth, maxDai, copied) => [
                 disableTouchListener
                 title="Click to Copy"
               >
-                <span>{localStorage.getItem("mnemonic")}</span>
+                <span>{mnemonic}</span>
               </Tooltip>
             </Typography>
           </Button>
         </CopyToClipboard>
+        <Typography>
+          To continue, please set a password. You will be prompted for this password every time you access your card. We can't recover this password for you, so don't forget it!
+        </Typography>
+        <TextField
+          id="filled-password-input"
+          label="Password"
+          type="password"
+          margin="normal"
+          variant="filled"
+        />
+        <TextField
+          id="filled-password-input"
+          label="Password (again)"
+          className={classes.textField}
+          type="password"
+          margin="normal"
+          variant="filled"
+        />
       </Grid>
     )
   },
@@ -156,7 +211,8 @@ class SetupCard extends Component {
 
     this.state = {
       index: 0,
-      open: !localStorage.getItem("hasBeenWarned"),
+      open: this.props.setup,
+      type: this.props.setupType,
       copied: false
     };
   }
@@ -176,7 +232,6 @@ class SetupCard extends Component {
   };
 
   handleClose = () => {
-    localStorage.setItem("hasBeenWarned", "true");
     this.setState({ open: false });
   };
 
@@ -217,6 +272,8 @@ class SetupCard extends Component {
         .substr(0, 5);
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
+
+    let mnemonic = this.props.generateMnemonic();
 
     const display = screens(classes, minEth, minDai, maxEth, maxDai, copied);
 

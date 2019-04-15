@@ -21,7 +21,6 @@ export async function getWalletFromEncryptedMnemonic(encryptedMnemonic, secret) 
 
     // set in case this is first call
     localStorage.setItem("delegateSigner", wallet.getAddressString());
-    localStorage.setItem("encryptedMnemonic", encryptedMnemonic)
     // update refunding variable on import
     localStorage.removeItem("refunding");
     localStorage.removeItem("maxBalanceAfterRefund");
@@ -39,7 +38,9 @@ export function decryptMnemonic(encryptedMnemonic, secret) {
 }
 
 export function encryptMnemonic(mnemonic, secret) {
-  return CryptoJS.AES.encrypt(mnemonic, secret).toString();
+  const encryptedMnemonic = CryptoJS.AES.encrypt(mnemonic, secret).toString();
+  localStorage.setItem("encryptedMnemonic", encryptedMnemonic)
+  return encryptedMnemonic;
 }
 
 export function getStore() {

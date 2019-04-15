@@ -123,6 +123,7 @@ class App extends React.Component {
         hasRefund: ""
       },
       browserMinimumBalance: null,
+      setupType: null,
     };
 
     this.networkHandler = this.networkHandler.bind(this);
@@ -143,11 +144,11 @@ class App extends React.Component {
     // If mnemonic already exists
     if (encryptedMnemonic) {
       // set pin prompt state true
-      this.setState({setup: true, setupType: "inputPin"})
+      this.setState({setupType: "inputPin"})
     } else if (!encryptedMnemonic && localStorage.getItem("mnemonic")) {
-      this.setState({setup: true, setupType: "createPin"})
+      this.setState({setupType: "createPin"})
     } else {
-      this.setState({setup: true, setupType: "onboard"})
+      this.setState({setupType: "onboard"})
     }
   }
 
@@ -155,26 +156,10 @@ class App extends React.Component {
   //                     Wallet Gen                    //
   // ************************************************* //
 
-  async walletGen(secret, mnemonic) {
-    let delegateSigner, address, encryptedMnemonic
-
-    // If legacy
-    if(localStorage.getItem("mnemonic")){
-      mnemonic = localStorage.getItem("mnemonic")
-    }
-
-    // If a mnemonic exists, encrypt it
-    if(mnemonic){
-      encryptedMnemonic = encryptMnemonic(mnemonic, secret)
-    } else if (localStorage.getItem("encryptedMnemonic")) {
-      encryptedMnemonic = localStorage.getItem("encryptedMnemonic")
-    } else {
-      // THIS SHOULD NEVER HAPPEN
-      console.log("ERROR! No mnemonic generated or in local storage. THIS SHOULD NEVER HAPPEN.")
-    }
-
-    delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, secret);
-    address = await delegateSigner.getAddressString();
+  async walletGen(pin) {
+    const encryptedMnemonic = encryptMnemonic(mnemonic, pin)
+    const delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
+    const address = await delegateSigner.getAddressString();
 
     // In case these exist, remove them
     localStorage.removeItem("mnemonic")
@@ -733,8 +718,8 @@ class App extends React.Component {
                     <SetupCard
                       {...props}
                       generateMnemonic={this.generateMnemonic}
+                      encryptMnemonic={this.encryptMnemonic}
                       walletGen={this.walletGen.bind(this)}
-                      setup={this.state.setup}
                       setupType={this.state.setupType}
                       browserMinimumBalance={browserMinimumBalance}
                       maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
