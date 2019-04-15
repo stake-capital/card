@@ -143,10 +143,11 @@ class App extends React.Component {
     // If mnemonic already exists
     if (encryptedMnemonic) {
       // set pin prompt state true
+      this.setState({setup: true, setupType: "inputPin"})
     } else if (!encryptedMnemonic && localStorage.getItem("mnemonic")) {
-      // set pin prompt state true and legacy state true
+      this.setState({setup: true, setupType: "createPin"})
     } else {
-      // show onboarding UI
+      this.setState({setup: true, setupType: "onboard"})
     }
   }
 
@@ -731,6 +732,10 @@ class App extends React.Component {
 
                     <SetupCard
                       {...props}
+                      generateMnemonic={this.generateMnemonic}
+                      walletGen={this.walletGen.bind(this)}
+                      setup={this.state.setup}
+                      setupType={this.state.setupType}
                       browserMinimumBalance={browserMinimumBalance}
                       maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
                       connextState={connextState}
