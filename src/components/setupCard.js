@@ -331,6 +331,8 @@ validatePassword(pin1, pin2) {
     }
   }
 
+  //HANDLERS
+
   handleClickOpen = () => {
     this.setState({ open: true });
   };
@@ -349,8 +351,13 @@ validatePassword(pin1, pin2) {
     this.setState({ open: false });
   };
 
+  //LIFECYCLE 
+
+  componentWillMount = () => {
+    console.log(`setup type: ${this.state.type}`);
+  }
+
   render() {
-    console.log(this.props.setupType);
     const {
       classes,
       connextState,
@@ -358,7 +365,7 @@ validatePassword(pin1, pin2) {
       maxTokenDeposit,
       setupType
     } = this.props;
-    const { index, open, copied, pin, pin2 } = this.state;
+    const { index, open, copied, pin, pin2, type } = this.state;
 
     // get proper display values
     // max token in BEI, min in wei and DAI
@@ -393,7 +400,7 @@ validatePassword(pin1, pin2) {
 
     //setup type
     const display = this.onboardingScreens(
-      "onboard",
+      type,
       classes,
       minEth,
       minDai,

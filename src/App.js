@@ -133,7 +133,7 @@ class App extends React.Component {
   //                     Hooks                         //
   // ************************************************* //
 
-  async componentDidMount() {
+  async componentWillMount() {
     // set public url
     publicUrl = window.location.origin.toLowerCase();
 
@@ -142,6 +142,7 @@ class App extends React.Component {
     // on mount, check if you need to refund by removing maxBalance
     localStorage.removeItem("refunding");
     // If mnemonic already exists
+
     if (encryptedMnemonic) {
       // set pin prompt state true
       this.setState({setupType: "inputPin"})
