@@ -160,13 +160,20 @@ class App extends React.Component {
   // ************************************************* //
 
   async walletGen(pin) {
-    const mnemonic = localStorage.getItem("mnemonic");
-    console.log(mnemonic)
-    const encryptedMnemonic = encryptMnemonic(mnemonic, pin)
-    console.log(encryptedMnemonic)
-    const delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
-    const address = await delegateSigner.getAddressString();
-    console.log(address)
+    let delegateSigner, mnemonic, encryptedMnemonic, address;
+    if(localStorage.getItem("encryptedMnemonic")){
+      encryptedMnemonic = localStorage.getItem("encryptedMnemonic");
+      delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
+      address = await delegateSigner.getAddressString();
+      console.log(address)
+    }else if(localStorage.getItem("mnemonic")){
+      mnemonic = localStorage.getItem("mnemonic");
+      encryptedMnemonic = encryptMnemonic(mnemonic, pin)
+      delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
+      address = await delegateSigner.getAddressString();
+    }else{
+      throw "error getting wallet from mnemonic";
+    }
 
     // In case these exist, remove them
     localStorage.removeItem("mnemonic")

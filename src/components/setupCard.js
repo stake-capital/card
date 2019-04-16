@@ -20,7 +20,7 @@ import CurrencyConvertable from "connext/dist/lib/currency/CurrencyConvertable";
 import Currency from "connext/dist/lib/currency/Currency";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import CopyIcon from "@material-ui/icons/FileCopy";
-import { generateMnemonic } from "../utils/walletGen";
+import { generateMnemonic, decryptMnemonic } from "../utils/walletGen";
 
 
 const styles = theme => ({
@@ -71,7 +71,8 @@ class SetupCard extends Component {
       type: this.props.setupType,
       copied: false,
       pin: null,
-      pin2: null
+      pin2: null,
+      ready:false
     };
   }
 
@@ -87,10 +88,14 @@ class SetupCard extends Component {
 }
 
 // Pin setup
-onSubmitOnboardOrCreate(mnemonic, pin, pin2) {
+onSubmitOnboardOrCreate() {
+  console.log(this.state.pin, this.state.pin2)
+  const { pin, pin2 } = this.state;
+  const mnemonic = this.handleGenerateMnemonic()
   if (!localStorage.getItem("encryptedMnemonic")) {
     if (localStorage.getItem("mnemonic")) {
       let existingMnemonic = localStorage.getItem("mnemonic");
+      console.log(`existing mnemonic ${existingMnemonic}`)
       this.props.encryptMnemonic(existingMnemonic, pin);
     }else if(!localStorage.getItem("mnemonic")){
       localStorage.setItem("mnemonic",mnemonic)
@@ -106,7 +111,8 @@ onSubmitOnboardOrCreate(mnemonic, pin, pin2) {
 }
 
 validatePassword(pin1, pin2) {
-  if (pin1 === pin2) {
+  console.log(`pin1: ${pin1} pin2: ${pin2}`)
+  if (pin1 == pin2) {
     return true;
   }
   return false;
@@ -123,8 +129,7 @@ validatePassword(pin1, pin2) {
     maxDai,
     copied,
     mnemonic,
-    pin,
-    pin2
+    ready
   ) =>{
     if (setupType == "onboard" || setupType == "createPin") {
       const screens = (
@@ -135,8 +140,7 @@ validatePassword(pin1, pin2) {
         maxDai,
         copied,
         mnemonic,
-        pin,
-        pin2
+        ready
       ) => [
         {
           title: "Welcome to Your Dai Card!",
@@ -144,35 +148,12 @@ validatePassword(pin1, pin2) {
                 please contact us via our Support chat (accessible in the Settings screen).`
         },
         {
-          title: "Your Recovery Phrase and Password",
-          message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
+          title: "Your Password",
+          message: `To continue, please set a password. You will be prompted for this
+          password every time you access your card. We can't recover this
+          password for you, so don't forget it!`,
           extra: (
             <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-              <CopyToClipboard text={mnemonic} color="primary">
-                <Button
-                  fullWidth
-                  className={classes.button}
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                >
-                  <CopyIcon style={{ marginRight: "5px" }} />
-                  <Typography noWrap={false} variant="body1" color="primary">
-                    <Tooltip
-                      disableFocusListener
-                      disableTouchListener
-                      title="Click to Copy"
-                    >
-                      <span>{JSON.stringify(mnemonic)}</span>
-                    </Tooltip>
-                  </Typography>
-                </Button>
-              </CopyToClipboard>
-              <Typography>
-                To continue, please set a password. You will be prompted for this
-                password every time you access your card. We can't recover this
-                password for you, so don't forget it!
-              </Typography>
               <TextField
                 id="filled-password-input"
                 label="Password"
@@ -200,6 +181,35 @@ validatePassword(pin1, pin2) {
               >
                 Submit
               </Button>
+            </Grid>
+          )
+        },
+        {
+          title: "Your Recovery Phrase",
+          message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
+          extra: (
+            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+
+              <CopyToClipboard text={mnemonic} color="primary">
+                <Button
+                  fullWidth
+                  className={classes.button}
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                >
+                  <CopyIcon style={{ marginRight: "5px" }} />
+                  <Typography noWrap={false} variant="body1" color="primary">
+                    <Tooltip
+                      disableFocusListener
+                      disableTouchListener
+                      title="Click to Copy"
+                    >
+                      {ready? null:(<span>{this.handleDecryptMnemonic()}</span>)}
+                    </Tooltip>
+                  </Typography>
+                </Button>
+              </CopyToClipboard>
             </Grid>
           )
         },
@@ -296,11 +306,10 @@ validatePassword(pin1, pin2) {
         maxDai,
         copied,
         mnemonic,
-        pin,
-        pin2
+        ready
       );
     } else if (setupType == "inputPin") {
-      const screens = pin => [
+      const screens = [
         {
           title: "Welcome!",
           message: `Please enter your password`,
@@ -327,7 +336,7 @@ validatePassword(pin1, pin2) {
           )
         }
       ];
-      return screens(pin);
+      return screens;
     } else {
       throw "error creating onboarding screens";
     }
@@ -337,8 +346,15 @@ validatePassword(pin1, pin2) {
 
   handleGenerateMnemonic = () => {
     const mnemonic =  generateMnemonic();
+    localStorage.setItem("mnemonic", mnemonic);
     return mnemonic;
   }
+  handleDecryptMnemonic = () => {
+    const encrypted = localStorage.getItem("encryptedMnemonic")
+    const mnemonic = decryptMnemonic(encrypted, this.state.pin);
+    return mnemonic;
+  }
+
   handleClickOpen = () => {
     this.setState({ open: true });
   };
@@ -372,7 +388,7 @@ validatePassword(pin1, pin2) {
       maxTokenDeposit,
       setupType
     } = this.props;
-    const { index, open, copied, pin, pin2, type } = this.state;
+    const { index, open, copied, pin, pin2, type, ready } = this.state;
 
     // get proper display values
     // max token in BEI, min in wei and DAI
@@ -403,7 +419,7 @@ validatePassword(pin1, pin2) {
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
 
-    const mnemonic = this.handleGenerateMnemonic();
+    const mnemonic = localStorage.getItem("mnemonic");
 
     //setup type
     const display = this.onboardingScreens(
@@ -414,7 +430,8 @@ validatePassword(pin1, pin2) {
       maxEth,
       maxDai,
       copied,
-      mnemonic
+      mnemonic,
+      ready
     );
 
     const isFinal = index === display.length - 1;
