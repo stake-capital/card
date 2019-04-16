@@ -65,7 +65,7 @@ class SetupCard extends Component {
 
     this.state = {
       index: 0,
-      open: true, //this.props.setup, 
+      open: this.props.open, //this.props.setup, 
       type: this.props.setupType,
       copied: false,
       pin: null,
@@ -349,6 +349,7 @@ validatePassword(pin1, pin2) {
 
   handleClose = () => {
     this.setState({ open: false });
+    this.props.setCard(false);
   };
 
   //LIFECYCLE 

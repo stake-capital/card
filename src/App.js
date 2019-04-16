@@ -124,6 +124,7 @@ class App extends React.Component {
       },
       browserMinimumBalance: null,
       setupType: null,
+      setupOpen:true
     };
 
     this.networkHandler = this.networkHandler.bind(this);
@@ -134,6 +135,7 @@ class App extends React.Component {
   // ************************************************* //
 
   async componentWillMount() {
+
     // set public url
     publicUrl = window.location.origin.toLowerCase();
 
@@ -725,6 +727,11 @@ class App extends React.Component {
                       generateMnemonic={generateMnemonic}
                       encryptMnemonic={encryptMnemonic}
                       walletGen={this.walletGen.bind(this)}
+                      open={this.state.setupOpen}
+                      setCard = { (evt) => { this.setState({
+                        setupOpen: evt
+                        })
+                      }}
                       setupType={this.state.setupType}
                       browserMinimumBalance={browserMinimumBalance}
                       maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
