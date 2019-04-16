@@ -158,9 +158,12 @@ class App extends React.Component {
 
   async walletGen(pin) {
     const mnemonic = localStorage.getItem("mnemonic");
+    console.log(mnemonic)
     const encryptedMnemonic = encryptMnemonic(mnemonic, pin)
+    console.log(encryptedMnemonic)
     const delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
     const address = await delegateSigner.getAddressString();
+    console.log(address)
 
     // In case these exist, remove them
     localStorage.removeItem("mnemonic")
@@ -718,8 +721,8 @@ class App extends React.Component {
 
                     <SetupCard
                       {...props}
-                      generateMnemonic={this.generateMnemonic}
-                      encryptMnemonic={this.encryptMnemonic}
+                      generateMnemonic={generateMnemonic}
+                      encryptMnemonic={encryptMnemonic}
                       walletGen={this.walletGen.bind(this)}
                       setupType={this.state.setupType}
                       browserMinimumBalance={browserMinimumBalance}
