@@ -79,7 +79,9 @@ class SettingsCard extends Component {
     } catch (e) {
       console.log("Error withdrawing, creating new address anyway", e.message);
     } finally {
-     // await createWallet(this.state.web3);
+      localStorage.removeItem("encryptedMnemonic");
+      this.props.setCard(true);
+      this.props.history.push('/');
       this.burnRefreshPoller();
     }
   };

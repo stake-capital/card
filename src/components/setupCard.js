@@ -22,7 +22,6 @@ import { CopyToClipboard } from "react-copy-to-clipboard";
 import CopyIcon from "@material-ui/icons/FileCopy";
 import { generateMnemonic, decryptMnemonic } from "../utils/walletGen";
 
-
 const styles = theme => ({
   icon: {
     width: "40px",
@@ -57,66 +56,66 @@ const styles = theme => ({
 
 */
 
-
-
-
-
 class SetupCard extends Component {
   constructor(props) {
     super(props);
 
     this.state = {
       index: 0,
-      open: this.props.open, //this.props.setup, 
+      open: this.props.open, //this.props.setup,
       type: this.props.setupType,
       copied: false,
       pin: null,
       pin2: null,
-      ready:false
+      mnemonic: null,
+      ready: false
     };
   }
 
   // Login with pin
- onSubmitInputPin(pin) {
-  try {
-    this.props.walletGen(pin);
-    this.handleClose()
-  } catch (e) {
-    console.log(`walletGen error`);
-    alert(`Password incorrect`);
-  }
-}
-
-// Pin setup
-onSubmitOnboardOrCreate() {
-  console.log(this.state.pin, this.state.pin2)
-  const { pin, pin2 } = this.state;
-  const mnemonic = this.handleGenerateMnemonic()
-  if (!localStorage.getItem("encryptedMnemonic")) {
-    if (localStorage.getItem("mnemonic")) {
-      let existingMnemonic = localStorage.getItem("mnemonic");
-      console.log(`existing mnemonic ${existingMnemonic}`)
-      this.props.encryptMnemonic(existingMnemonic, pin);
-    }else if(!localStorage.getItem("mnemonic")){
-      localStorage.setItem("mnemonic",mnemonic)
-      this.props.encryptMnemonic(mnemonic, pin);
+  onSubmitInputPin(pin) {
+    try {
+      this.props.walletGen(pin);
+      this.handleClose();
+    } catch (e) {
+      console.log(`walletGen error`);
+      alert(`Password incorrect`);
     }
   }
-  const passwordValidated = this.validatePassword(pin, pin2);
-  if (passwordValidated) {
-    this.props.walletGen(pin);
-  } else {
-    alert(`Passwords don't match. Please try again!`);
-  }
-}
 
-validatePassword(pin1, pin2) {
-  console.log(`pin1: ${pin1} pin2: ${pin2}`)
-  if (pin1 == pin2) {
-    return true;
+  // Pin setup
+  onSubmitOnboardOrCreate() {
+    console.log(this.state.pin, this.state.pin2);
+    const { pin, pin2, mnemonic } = this.state;
+    if (!localStorage.getItem("encryptedMnemonic")) {
+      if (localStorage.getItem("mnemonic")) {
+        let existingMnemonic = localStorage.getItem("mnemonic");
+
+        //remove plaintext mnemonic from storage
+        localStorage.removeItem("mnemonic");
+
+        this.props.encryptMnemonic(existingMnemonic, pin);
+      } else if (!localStorage.getItem("mnemonic")) {
+        let mnemonic = this.handleGenerateMnemonic()
+        this.props.encryptMnemonic(mnemonic, pin);
+        this.setState({mnemonic:null})
+      }
+    }
+    const passwordValidated = this.validatePassword(pin, pin2);
+    if (passwordValidated) {
+      this.props.walletGen(pin);
+    } else {
+      alert(`Passwords don't match. Please try again!`);
+    }
   }
-  return false;
-}
+
+  validatePassword(pin1, pin2) {
+    console.log(`pin1: ${pin1} pin2: ${pin2}`);
+    if (pin1 == pin2) {
+      return true;
+    }
+    return false;
+  }
 
   //Onboarding Screens
 
@@ -129,8 +128,7 @@ validatePassword(pin1, pin2) {
     maxDai,
     copied,
     mnemonic,
-    ready
-  ) =>{
+  ) => {
     if (setupType == "onboard" || setupType == "createPin") {
       const screens = (
         classes,
@@ -139,8 +137,6 @@ validatePassword(pin1, pin2) {
         maxEth,
         maxDai,
         copied,
-        mnemonic,
-        ready
       ) => [
         {
           title: "Welcome to Your Dai Card!",
@@ -148,11 +144,52 @@ validatePassword(pin1, pin2) {
                 please contact us via our Support chat (accessible in the Settings screen).`
         },
         {
+          title: "Your Password",
+          message: `To continue, please set a password. You will be prompted for this
+          password every time you access your card. We can't recover this
+          password for you, so don't forget it!`,
+          extra: (
+            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+              <TextField
+                id="filled-password-input"
+                label="Password"
+                type="password"
+                margin="normal"
+                variant="filled"
+                onBlur={evt => this.setState({ pin: evt.target.value })}
+              />
+              <TextField
+                id="filled-password-input"
+                label="Password (again)"
+                className={classes.textField}
+                type="password"
+                margin="normal"
+                onBlur={evt => this.setState({ pin2: evt.target.value })}
+                variant="filled"
+              />
+              <Button
+                onClick={() =>
+                  this.onSubmitOnboardOrCreate(
+                    this.state.pin,
+                    this.state.pin2
+                  )
+                }
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="medium"
+                text="Submit"
+              >
+                Submit
+              </Button>
+            </Grid>
+          )
+        },
+        {
           title: "Your Recovery Phrase",
           message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
           extra: (
             <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-
               <CopyToClipboard text={mnemonic} color="primary">
                 <Button
                   fullWidth
@@ -177,43 +214,6 @@ validatePassword(pin1, pin2) {
           )
         },
         {
-          title: "Your Password",
-          message: `To continue, please set a password. You will be prompted for this
-          password every time you access your card. We can't recover this
-          password for you, so don't forget it!`,
-          extra: (
-            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-              <TextField
-                id="filled-password-input"
-                label="Password"
-                type="password"
-                margin="normal"
-                variant="filled"
-                onChange={evt => this.setState({ pin: evt.target.value })}
-              />
-              <TextField
-                id="filled-password-input"
-                label="Password (again)"
-                className={classes.textField}
-                type="password"
-                margin="normal"
-                onChange={evt => this.setState({ pin2: evt.target.value })}
-                variant="filled"
-              />
-              <Button
-                onClick={() => this.onSubmitOnboardOrCreate(mnemonic, this.state.pin, this.state.pin2)}
-                className={classes.button}
-                variant="outlined"
-                color="primary"
-                size="medium"
-                text="Submit"
-              >
-                Submit
-              </Button>
-            </Grid>
-          )
-        },
-        {
           title: "Adding funds - ETH",
           message: (
             <div>
@@ -222,19 +222,19 @@ validatePassword(pin1, pin2) {
                 <span style={{ fontWeight: "bold" }}>
                   Minimum deposit (covers gas costs):
                 </span>{" "}
-                {minEth || "?.??"} ETH (${minDai || "?.??"})<br />
+                {minEth || "?.??"} ETH ({minDai || "?.??"})<br />
                 <span style={{ fontWeight: "bold" }}>
                   Maximum deposit (for your protection):
                 </span>{" "}
-                {maxEth || "?.??"} ETH (${maxDai || "?.??"})
+                {maxEth || "?.??"} ETH ({maxDai || "?.??"})
               </p>
             </div>
           ),
           message2: (
             <p>
               Don't have any ETH or need a refresher on how to send it?{" "}
-              <a href="https://www.coinbase.com/">Coinbase</a> is a good place to
-              get started.{" "}
+              <a href="https://www.coinbase.com/">Coinbase</a> is a good place
+              to get started.{" "}
             </p>
           ),
           extra: (
@@ -268,7 +268,7 @@ validatePassword(pin1, pin2) {
         {
           title: "Adding Funds - DAI",
           message: `If you'd like to deposit DAI directly, there are no deposit maximums. However, make sure to also send at least ${minEth ||
-            "?.??"} ETH ($${minDai || "?.??"}) for gas.`,
+            "?.??"} ETH (${minDai || "?.??"}) for gas.`,
           extra: (
             <Grid container style={{ padding: "2% 2% 2% 2%" }}>
               <CopyToClipboard
@@ -305,8 +305,7 @@ validatePassword(pin1, pin2) {
         maxEth,
         maxDai,
         copied,
-        mnemonic,
-        ready
+        mnemonic
       );
     } else if (setupType == "inputPin") {
       const screens = [
@@ -321,17 +320,18 @@ validatePassword(pin1, pin2) {
                 type="password"
                 margin="normal"
                 variant="filled"
-                onChange={evt => this.setState({ pin: evt.target.value })}
+                onBlur={evt => this.setState({ pin: evt.target.value })}
               />
               <Button
-                
                 onClick={() => this.onSubmitInputPin(this.state.pin)}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
                 size="medium"
-                style={{height:"40px"}}
-              >Submit</Button>
+                style={{ height: "40px" }}
+              >
+                Submit
+              </Button>
             </Grid>
           )
         }
@@ -340,20 +340,22 @@ validatePassword(pin1, pin2) {
     } else {
       throw "error creating onboarding screens";
     }
-  }
+  };
 
   //HANDLERS
 
   handleGenerateMnemonic = () => {
-    const mnemonic =  generateMnemonic();
-    localStorage.setItem("mnemonic", mnemonic);
+    const mnemonic = generateMnemonic();
     return mnemonic;
+  };
+  handleDecryptMnemonic = () => {
+    const encrypted = localStorage.getItem("encryptedMnemonic")
+    if(encrypted && this.state.pin){
+      const mnemonic = decryptMnemonic(encrypted, this.state.pin);
+      return mnemonic;
+    }
+    return "Mnemonic not set. Please go back and set a password!"
   }
-  // handleDecryptMnemonic = () => {
-  //   const encrypted = localStorage.getItem("encryptedMnemonic")
-  //   const mnemonic = decryptMnemonic(encrypted, this.state.pin);
-  //   return mnemonic;
-  // }
 
   handleClickOpen = () => {
     this.setState({ open: true });
@@ -374,11 +376,11 @@ validatePassword(pin1, pin2) {
     this.props.setCard(false);
   };
 
-  //LIFECYCLE 
+  //LIFECYCLE
 
   componentWillMount = () => {
     console.log(`setup type: ${this.state.type}`);
-  }
+  };
 
   render() {
     const {
@@ -419,7 +421,8 @@ validatePassword(pin1, pin2) {
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
 
-    const mnemonic = this.handleGenerateMnemonic();
+   // const mnemonic = this.handleGenerateMnemonic();
+    const mnemonic =   this.handleDecryptMnemonic() || "{}"
 
     //setup type
     const display = this.onboardingScreens(
@@ -430,8 +433,7 @@ validatePassword(pin1, pin2) {
       maxEth,
       maxDai,
       copied,
-      mnemonic,
-      ready
+      mnemonic
     );
 
     const isFinal = index === display.length - 1;
@@ -482,39 +484,40 @@ validatePassword(pin1, pin2) {
 
                 <Grid item xs={12}>
                   <DialogActions style={{ padding: "2% 2% 2% 2%" }}>
-                  <Grid>
-                    {index !== 0 && (
-                      <Button
-                        onClick={this.handleClickPrevious}
-                        className={classes.button}
-                        variant="outlined"
-                        color="primary"
-                        size="small"
-                      >
-                        Back
-                      </Button>
-                    )}
-                    {isFinal ? (
-                      <Button
-                        onClick={this.handleClose}
-                        className={classes.button}
-                        variant="outlined"
-                        color="primary"
-                        size="small"
-                      >
-                        Got it!
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={this.handleClickNext}
-                        className={classes.button}
-                        variant="outlined"
-                        color="primary"
-                        size="small"
-                      >
-                        Next
-                      </Button>
-                    )}</Grid>
+                    <Grid>
+                      {index !== 0 && (
+                        <Button
+                          onClick={this.handleClickPrevious}
+                          className={classes.button}
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                        >
+                          Back
+                        </Button>
+                      )}
+                      {isFinal ? (
+                        <Button
+                          onClick={this.handleClose}
+                          className={classes.button}
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                        >
+                          Got it!
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={this.handleClickNext}
+                          className={classes.button}
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                        >
+                          Next
+                        </Button>
+                      )}
+                    </Grid>
                   </DialogActions>
                 </Grid>
               </DialogContent>

@@ -135,7 +135,7 @@ class App extends React.Component {
   // ************************************************* //
 
   async componentWillMount() {
-    // localStorage.removeItem("encryptedMnemonic")
+    localStorage.removeItem("encryptedMnemonic")
     // set public url
     publicUrl = window.location.origin.toLowerCase();
 
@@ -766,6 +766,10 @@ class App extends React.Component {
               render={props => (
                 <SettingsCard
                   {...props}
+                  setCard = { (evt) => { this.setState({
+                    setupOpen: evt
+                    })
+                  }}
                   networkHandler={this.networkHandler}
                   connext={connext}
                   address={address}
