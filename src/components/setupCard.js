@@ -12,7 +12,8 @@ import {
   LinearProgress,
   Tooltip,
   Input,
-  TextField
+  TextField,
+  CircularProgress
 } from "@material-ui/core";
 import { CurrencyType } from "connext/dist/state/ConnextState/CurrencyTypes";
 import getExchangeRates from "connext/dist/lib/getExchangeRates";
@@ -26,6 +27,13 @@ const styles = theme => ({
   icon: {
     width: "40px",
     height: "40px"
+  },
+  password:{
+    width:"40%",
+    padding: "2% 2% 2% 2%",
+  },
+  passwordInput:{
+    padding: "2% 2% 2% 2%",
   }
 });
 
@@ -68,7 +76,9 @@ class SetupCard extends Component {
       pin: null,
       pin2: null,
       mnemonic: null,
-      ready: false
+      nextDisabled: false,
+      isCreating: false,
+      createSuccess: false
     };
   }
 
@@ -79,14 +89,15 @@ class SetupCard extends Component {
       this.handleClose();
     } catch (e) {
       console.log(`walletGen error`);
-      alert(`Password incorrect`);
+      alert(`Password incorrect. If this error persists, please reach out to support: https://discord.gg/A2DPmgn`);
     }
   }
 
   // Pin setup
   onSubmitOnboardOrCreate() {
     console.log(this.state.pin, this.state.pin2);
-    const { pin, pin2, mnemonic } = this.state;
+    const { pin, pin2, index, isCreating } = this.state;
+    this.setState({ isCreating: true });
     if (!localStorage.getItem("encryptedMnemonic")) {
       if (localStorage.getItem("mnemonic")) {
         let existingMnemonic = localStorage.getItem("mnemonic");
@@ -96,17 +107,28 @@ class SetupCard extends Component {
 
         this.props.encryptMnemonic(existingMnemonic, pin);
       } else if (!localStorage.getItem("mnemonic")) {
-        let mnemonic = this.handleGenerateMnemonic()
+        let mnemonic = this.handleGenerateMnemonic();
         this.props.encryptMnemonic(mnemonic, pin);
-        this.setState({mnemonic:null})
+        this.setState({ mnemonic: null });
       }
     }
     const passwordValidated = this.validatePassword(pin, pin2);
-    if (passwordValidated) {
-      this.props.walletGen(pin);
-    } else {
-      alert(`Passwords don't match. Please try again!`);
+    try {
+      if (passwordValidated) {
+        this.props.walletGen(pin);
+      } else {
+        alert(`Passwords don't match. Please try again!`);
+        throw "password mismatch";
+      }
+    } catch (e) {
+      console.log(`Wallet gen error: ${e}`);
     }
+    this.setState({
+      nextDisabled: false,
+      isCreating: false,
+      createSuccess: true,
+      index: index+1
+    });
   }
 
   validatePassword(pin1, pin2) {
@@ -128,59 +150,110 @@ class SetupCard extends Component {
     maxDai,
     copied,
     mnemonic,
+    index,
+    nextDisabled,
+    createSuccess,
+    isCreating
   ) => {
     if (setupType == "onboard" || setupType == "createPin") {
-      const screens = (
-        classes,
-        minEth,
-        minDai,
-        maxEth,
-        maxDai,
-        copied,
-      ) => [
+      const screens = (classes, minEth, minDai, maxEth, maxDai, copied) => [
         {
           title: "Welcome to Your Dai Card!",
           message: `This is beta software, so if you run into any trouble 
-                please contact us via our Support chat (accessible in the Settings screen).`
-        },
-        {
-          title: "Your Password",
-          message: `To continue, please set a password. You will be prompted for this
-          password every time you access your card. We can't recover this
-          password for you, so don't forget it!`,
-          extra: (
-            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-              <TextField
-                id="filled-password-input"
-                label="Password"
-                type="password"
-                margin="normal"
-                variant="filled"
-                onBlur={evt => this.setState({ pin: evt.target.value })}
-              />
-              <TextField
-                id="filled-password-input"
-                label="Password (again)"
-                className={classes.textField}
-                type="password"
-                margin="normal"
-                onBlur={evt => this.setState({ pin2: evt.target.value })}
-                variant="filled"
-              />
+                please contact us via our Support chat (accessible in the Settings screen).`,
+          buttons: (
+            <Grid>
               <Button
-                onClick={() =>
-                  this.onSubmitOnboardOrCreate(
-                    this.state.pin,
-                    this.state.pin2
-                  )
-                }
+                onClick={this.handleClickNext}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
-                size="medium"
-                text="Submit"
+                size="small"
+                disabled={nextDisabled}
               >
-                Submit
+                Next
+              </Button>
+            </Grid>
+          )
+        },
+        {
+          title: "Your Password",
+          message2: (
+            <Grid>
+              {createSuccess ? (
+                <Typography>Success!</Typography>
+              ):(
+                <Typography>
+                  To continue, please set a password. You will be prompted for
+                  this password every time you access your card. We can't
+                  recover this password for you, so don't forget it!
+                </Typography>
+              )}
+            </Grid>
+          ),
+          extra: (
+            <Grid wrap>
+              {createSuccess ? (null):(
+                <Grid container style={{ padding: "2% 2% 2% 2%" }} alignContent="center">
+                  <TextField
+                    className={classes.password}
+                    id="filled-password-input"
+                    label="Password"
+                    type="password"
+                    variant="outlined"
+                    onBlur={evt => this.setState({ pin: evt.target.value })}
+                  />
+                  <TextField
+                    id="filled-password-input"
+                    label="Confirm Password"
+                    className={classes.password}
+                    type="password"
+                    onBlur={evt => this.setState({ pin2: evt.target.value })}
+                    variant="outlined"
+                  />
+                  <div style={{padding:"2% 2% 2% 2%"}}>
+                    <Button
+                      onClick={() =>
+                        this.onSubmitOnboardOrCreate(
+                          this.state.pin,
+                          this.state.pin2
+                        )
+                      }
+                      className={classes.button}
+                      variant="outlined"
+                      color="primary"
+                      size="medium"
+                      disabled={isCreating}
+                    >
+                      Create Password
+                    </Button>
+                    {isCreating && <CircularProgress size={24} />}
+                  </div>
+                </Grid>
+              )}
+            </Grid>
+          ),
+          buttons: (
+            <Grid>
+              <Button
+                onClick={this.handleClickPrevious}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                style={{ marginRight: "5px" }}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={this.handleClickNext}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                disabled={nextDisabled} //should be changed to createSuccess
+              >
+                Next
               </Button>
             </Grid>
           )
@@ -211,6 +284,30 @@ class SetupCard extends Component {
                 </Button>
               </CopyToClipboard>
             </Grid>
+          ),
+          buttons: (
+            <Grid>
+              <Button
+                onClick={this.handleClickPrevious}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                style={{ marginRight: "5px" }}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={this.handleClickNext}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                disabled={nextDisabled} //should be changed to createSuccess
+              >
+                Next
+              </Button>
+            </Grid>
           )
         },
         {
@@ -220,22 +317,20 @@ class SetupCard extends Component {
               <p>To get started, send some funds to the address above!</p>
               <p>
                 <span style={{ fontWeight: "bold" }}>
-                  Minimum deposit (covers gas costs):
+                  Minimum deposit (covers gas costs):<br />
                 </span>{" "}
                 {minEth || "?.??"} ETH ({minDai || "?.??"})<br />
                 <span style={{ fontWeight: "bold" }}>
-                  Maximum deposit (for your protection):
+                  Maximum deposit (for your protection):<br />
                 </span>{" "}
                 {maxEth || "?.??"} ETH ({maxDai || "?.??"})
               </p>
-            </div>
-          ),
-          message2: (
-            <p>
+              <p>
               Don't have any ETH or need a refresher on how to send it?{" "}
               <a href="https://www.coinbase.com/">Coinbase</a> is a good place
               to get started.{" "}
             </p>
+            </div>
           ),
           extra: (
             <Grid container style={{ padding: "2% 2% 2% 2%" }}>
@@ -262,6 +357,30 @@ class SetupCard extends Component {
                   </Typography>
                 </Button>
               </CopyToClipboard>
+            </Grid>
+          ),
+          buttons: (
+            <Grid>
+              <Button
+                onClick={this.handleClickPrevious}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                style={{ marginRight: "5px" }}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={this.handleClickNext}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                disabled={nextDisabled} //should be changed to createSuccess
+              >
+                Next
+              </Button>
             </Grid>
           )
         },
@@ -295,40 +414,57 @@ class SetupCard extends Component {
                 </Button>
               </CopyToClipboard>
             </Grid>
+          ),
+          buttons: (
+            <Grid>
+              <Button
+                onClick={this.handleClickPrevious}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                style={{ marginRight: "5px" }}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={this.handleClose}
+                className={classes.button}
+                variant="outlined"
+                color="primary"
+                size="small"
+                disabled={nextDisabled} //should be changed to createSuccess
+              >
+                Got it!
+              </Button>
+            </Grid>
           )
         }
       ];
-      return screens(
-        classes,
-        minEth,
-        minDai,
-        maxEth,
-        maxDai,
-        copied,
-        mnemonic
-      );
+      return screens(classes, minEth, minDai, maxEth, maxDai, copied, mnemonic);
     } else if (setupType == "inputPin") {
       const screens = [
         {
           title: "Welcome!",
-          message: `Please enter your password`,
+          message2: `Please enter your password`,
           extra: (
             <Grid container style={{ padding: "2% 2% 2% 2%" }}>
               <TextField
-                id="filled-password-input"
-                label="Password"
-                type="password"
-                margin="normal"
-                variant="filled"
-                onBlur={evt => this.setState({ pin: evt.target.value })}
-              />
+              fullWidth
+                    className={classes.passwordInput}
+                    id="filled-password-input"
+                    label="Password"
+                    type="password"
+                    variant="outlined"
+                    onBlur={evt => this.setState({ pin: evt.target.value })}
+                />
               <Button
+                fullWidth
                 onClick={() => this.onSubmitInputPin(this.state.pin)}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
-                size="medium"
-                style={{ height: "40px" }}
+                size="large"
               >
                 Submit
               </Button>
@@ -349,13 +485,13 @@ class SetupCard extends Component {
     return mnemonic;
   };
   handleDecryptMnemonic = () => {
-    const encrypted = localStorage.getItem("encryptedMnemonic")
-    if(encrypted && this.state.pin){
+    const encrypted = localStorage.getItem("encryptedMnemonic");
+    if (encrypted && this.state.pin) {
       const mnemonic = decryptMnemonic(encrypted, this.state.pin);
       return mnemonic;
     }
-    return "Mnemonic not set. Please go back and set a password!"
-  }
+    return "Mnemonic not set. Please go back and set a password!";
+  };
 
   handleClickOpen = () => {
     this.setState({ open: true });
@@ -363,11 +499,17 @@ class SetupCard extends Component {
 
   handleClickNext = () => {
     const { index } = this.state;
+    if (index == 0) {
+      this.setState({ index: index + 1, nextDisabled: true });
+    }
     this.setState({ index: index + 1 });
   };
 
   handleClickPrevious = () => {
-    const { index } = this.state;
+    const { index, nextDisabled } = this.state;
+    if(nextDisabled){
+      this.setState({nextDisabled:false});
+    }
     this.setState({ index: index - 1 });
   };
 
@@ -390,7 +532,17 @@ class SetupCard extends Component {
       maxTokenDeposit,
       setupType
     } = this.props;
-    const { index, open, copied, pin, pin2, type, ready } = this.state;
+    const {
+      index,
+      open,
+      copied,
+      pin,
+      pin2,
+      type,
+      nextDisabled,
+      createSuccess,
+      isCreating
+    } = this.state;
 
     // get proper display values
     // max token in BEI, min in wei and DAI
@@ -421,8 +573,8 @@ class SetupCard extends Component {
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
 
-   // const mnemonic = this.handleGenerateMnemonic();
-    const mnemonic =   this.handleDecryptMnemonic() || "{}"
+    // const mnemonic = this.handleGenerateMnemonic();
+    const mnemonic = this.handleDecryptMnemonic() || "{}";
 
     //setup type
     const display = this.onboardingScreens(
@@ -433,7 +585,11 @@ class SetupCard extends Component {
       maxEth,
       maxDai,
       copied,
-      mnemonic
+      mnemonic,
+      index,
+      nextDisabled,
+      createSuccess,
+      isCreating
     );
 
     const isFinal = index === display.length - 1;
@@ -460,67 +616,43 @@ class SetupCard extends Component {
               <Grid item xs={12} style={{ padding: "2% 2% 2% 2%" }}>
                 <LinearProgress variant="determinate" value={progress} />
               </Grid>
-
               <Grid item xs={12}>
                 <DialogTitle variant="h5">{display[index].title}</DialogTitle>
               </Grid>
-              {display[index].extra && (
-                <Grid item xs={12}>
-                  {display[index].extra}
-                </Grid>
-              )}
-
               <DialogContent>
-                <Grid item xs={12} style={{ padding: "2% 2% 2% 2%" }}>
-                  <DialogContentText variant="body1">
-                    {display[index].message}
-                  </DialogContentText>
                   {display[index].message2 ? (
                     <DialogContentText variant="body1">
                       {display[index].message2}
                     </DialogContentText>
                   ) : null}
-                </Grid>
+                </DialogContent>
 
-                <Grid item xs={12}>
-                  <DialogActions style={{ padding: "2% 2% 2% 2%" }}>
-                    <Grid>
-                      {index !== 0 && (
-                        <Button
-                          onClick={this.handleClickPrevious}
-                          className={classes.button}
-                          variant="outlined"
-                          color="primary"
-                          size="small"
-                        >
-                          Back
-                        </Button>
-                      )}
-                      {isFinal ? (
-                        <Button
-                          onClick={this.handleClose}
-                          className={classes.button}
-                          variant="outlined"
-                          color="primary"
-                          size="small"
-                        >
-                          Got it!
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={this.handleClickNext}
-                          className={classes.button}
-                          variant="outlined"
-                          color="primary"
-                          size="small"
-                        >
-                          Next
-                        </Button>
-                      )}
-                    </Grid>
-                  </DialogActions>
+              {display[index].extra && (
+                <Grid item xs={12} style={{marginTop:"-4%"}}>
+                  {display[index].extra}
+                </Grid>
+              )}
+
+              <DialogContent>
+                <Grid item xs={12} style={{ padding: "2% 2% 10% 2%" }}>
+                  <DialogContentText variant="body1">
+                    {display[index].message}
+                  </DialogContentText>
                 </Grid>
               </DialogContent>
+              {display[index].buttons && (
+                <Grid
+                  item
+                  xs={12}
+                  style={{
+                    position: "absolute",
+                    right: "20px",
+                    bottom: "20px"
+                  }}
+                >
+                  {display[index].buttons}
+                </Grid>
+              )}
             </Grid>
           </Dialog>
         )}
@@ -530,3 +662,5 @@ class SetupCard extends Component {
 }
 
 export default withStyles(styles)(SetupCard);
+
+
