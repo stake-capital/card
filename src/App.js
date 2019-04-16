@@ -135,7 +135,7 @@ class App extends React.Component {
   // ************************************************* //
 
   async componentWillMount() {
-    localStorage.removeItem("encryptedMnemonic")
+    // localStorage.removeItem("encryptedMnemonic")
     // set public url
     publicUrl = window.location.origin.toLowerCase();
 

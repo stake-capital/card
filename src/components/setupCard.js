@@ -148,6 +148,35 @@ validatePassword(pin1, pin2) {
                 please contact us via our Support chat (accessible in the Settings screen).`
         },
         {
+          title: "Your Recovery Phrase",
+          message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
+          extra: (
+            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+
+              <CopyToClipboard text={mnemonic} color="primary">
+                <Button
+                  fullWidth
+                  className={classes.button}
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                >
+                  <CopyIcon style={{ marginRight: "5px" }} />
+                  <Typography noWrap={false} variant="body1" color="primary">
+                    <Tooltip
+                      disableFocusListener
+                      disableTouchListener
+                      title="Click to Copy"
+                    >
+                      <span>{mnemonic}</span>
+                    </Tooltip>
+                  </Typography>
+                </Button>
+              </CopyToClipboard>
+            </Grid>
+          )
+        },
+        {
           title: "Your Password",
           message: `To continue, please set a password. You will be prompted for this
           password every time you access your card. We can't recover this
@@ -181,35 +210,6 @@ validatePassword(pin1, pin2) {
               >
                 Submit
               </Button>
-            </Grid>
-          )
-        },
-        {
-          title: "Your Recovery Phrase",
-          message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
-          extra: (
-            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-
-              <CopyToClipboard text={mnemonic} color="primary">
-                <Button
-                  fullWidth
-                  className={classes.button}
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                >
-                  <CopyIcon style={{ marginRight: "5px" }} />
-                  <Typography noWrap={false} variant="body1" color="primary">
-                    <Tooltip
-                      disableFocusListener
-                      disableTouchListener
-                      title="Click to Copy"
-                    >
-                      {ready? null:(<span>{this.handleDecryptMnemonic()}</span>)}
-                    </Tooltip>
-                  </Typography>
-                </Button>
-              </CopyToClipboard>
             </Grid>
           )
         },
@@ -349,11 +349,11 @@ validatePassword(pin1, pin2) {
     localStorage.setItem("mnemonic", mnemonic);
     return mnemonic;
   }
-  handleDecryptMnemonic = () => {
-    const encrypted = localStorage.getItem("encryptedMnemonic")
-    const mnemonic = decryptMnemonic(encrypted, this.state.pin);
-    return mnemonic;
-  }
+  // handleDecryptMnemonic = () => {
+  //   const encrypted = localStorage.getItem("encryptedMnemonic")
+  //   const mnemonic = decryptMnemonic(encrypted, this.state.pin);
+  //   return mnemonic;
+  // }
 
   handleClickOpen = () => {
     this.setState({ open: true });
@@ -419,7 +419,7 @@ validatePassword(pin1, pin2) {
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
 
-    const mnemonic = localStorage.getItem("mnemonic");
+    const mnemonic = this.handleGenerateMnemonic();
 
     //setup type
     const display = this.onboardingScreens(
