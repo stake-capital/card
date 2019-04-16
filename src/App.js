@@ -135,7 +135,7 @@ class App extends React.Component {
   // ************************************************* //
 
   async componentWillMount() {
-
+    localStorage.removeItem("encryptedMnemonic")
     // set public url
     publicUrl = window.location.origin.toLowerCase();
 
@@ -672,6 +672,7 @@ class App extends React.Component {
     this.setState({ status });
   }
 
+
   async closeModal() {
     await this.setState({ loadingConnext: false });
   };
@@ -724,7 +725,6 @@ class App extends React.Component {
 
                     <SetupCard
                       {...props}
-                      generateMnemonic={generateMnemonic}
                       encryptMnemonic={encryptMnemonic}
                       walletGen={this.walletGen.bind(this)}
                       open={this.state.setupOpen}

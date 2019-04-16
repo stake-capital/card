@@ -4,7 +4,7 @@ const bip39 = require("bip39");
 const hdkey = require("ethereumjs-wallet/hdkey");
 const CryptoJS = require("crypto-js");
 
-export async function generateMnemonic() {
+export function generateMnemonic() {
   const mnemonic = bip39.generateMnemonic();
   return mnemonic;
 }

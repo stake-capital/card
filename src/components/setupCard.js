@@ -20,6 +20,8 @@ import CurrencyConvertable from "connext/dist/lib/currency/CurrencyConvertable";
 import Currency from "connext/dist/lib/currency/Currency";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import CopyIcon from "@material-ui/icons/FileCopy";
+import { generateMnemonic } from "../utils/walletGen";
+
 
 const styles = theme => ({
   icon: {
@@ -161,7 +163,7 @@ validatePassword(pin1, pin2) {
                       disableTouchListener
                       title="Click to Copy"
                     >
-                      <span>{mnemonic}</span>
+                      <span>{JSON.stringify(mnemonic)}</span>
                     </Tooltip>
                   </Typography>
                 </Button>
@@ -177,7 +179,7 @@ validatePassword(pin1, pin2) {
                 type="password"
                 margin="normal"
                 variant="filled"
-                onChange={(evt) => this.setState({ pin: evt.target.value })}
+                onChange={evt => this.setState({ pin: evt.target.value })}
               />
               <TextField
                 id="filled-password-input"
@@ -185,7 +187,7 @@ validatePassword(pin1, pin2) {
                 className={classes.textField}
                 type="password"
                 margin="normal"
-                onChange={(evt) => this.setState({ pin2: evt.target.value })}
+                onChange={evt => this.setState({ pin2: evt.target.value })}
                 variant="filled"
               />
               <Button
@@ -333,6 +335,10 @@ validatePassword(pin1, pin2) {
 
   //HANDLERS
 
+  handleGenerateMnemonic = () => {
+    const mnemonic =  generateMnemonic();
+    return mnemonic;
+  }
   handleClickOpen = () => {
     this.setState({ open: true });
   };
@@ -397,7 +403,7 @@ validatePassword(pin1, pin2) {
       maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({});
     }
 
-    let mnemonic = this.props.generateMnemonic;
+    const mnemonic = this.handleGenerateMnemonic();
 
     //setup type
     const display = this.onboardingScreens(
