@@ -213,10 +213,6 @@ class PayCard extends Component {
 
     this.state = {
       paymentVal: {
-        meta: {
-          purchaseId: "payment"
-          // memo: "",
-        },
         payments: [
           {
             recipient: props.scanArgs.recipient
@@ -228,7 +224,7 @@ class PayCard extends Component {
                 : "0",
               amountWei: "0"
             },
-            type: "PT_CHANNEL"
+            type: "PT_OPTIMISTIC"
           }
         ]
       },
