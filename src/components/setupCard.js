@@ -22,6 +22,7 @@ import Currency from "connext/dist/lib/currency/Currency";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import CopyIcon from "@material-ui/icons/FileCopy";
 import { generateMnemonic, decryptMnemonic } from "../utils/walletGen";
+import ReactCodeInput from "react-code-input";
 
 const styles = theme => ({
   icon: {
@@ -89,16 +90,20 @@ class SetupCard extends Component {
   // Login with pin
   async onSubmitInputPin(pin) {
     try {
-      const valid = this.validatePasswordNotNull(this.props.setupType,this.state.pin);
+      const valid = this.validatePasswordNotNull(
+        this.props.setupType,
+        this.state.pin
+      );
       if (valid) {
         await this.props.walletGen(pin);
         this.handleClose();
       }
     } catch (e) {
       console.log(`walletGen error ${e}`);
-      this.setState({returningPasswordError:true, returningPasswordErrorText:
-        `Password incorrect. If this error persists, please reach out to support: https://discord.gg/A2DPmgn`}
-      );
+      this.setState({
+        returningPasswordError: true,
+        returningPasswordErrorText: `Passcode incorrect. If you're entering the correct password and this error persists, please reach out to support: https://discord.gg/A2DPmgn`
+      });
     }
   }
 
@@ -108,52 +113,58 @@ class SetupCard extends Component {
     const { pin, pin2, index, isCreating } = this.state;
     this.setState({ isCreating: true });
     const passwordsEqual = this.validatePasswordEquality(pin, pin2);
-    const passwordsNotNull = this.validatePasswordNotNull(this.props.setupType, pin, pin2);
+    const passwordsNotNull = this.validatePasswordNotNull(
+      this.props.setupType,
+      pin,
+      pin2
+    );
     if (passwordsEqual && passwordsNotNull) {
-    try{
-    if (!localStorage.getItem("encryptedMnemonic")) {
-      if (localStorage.getItem("mnemonic")) {
-        let existingMnemonic = localStorage.getItem("mnemonic");
+      try {
+        if (!localStorage.getItem("encryptedMnemonic")) {
+          if (localStorage.getItem("mnemonic")) {
+            let existingMnemonic = localStorage.getItem("mnemonic");
 
-        //remove plaintext mnemonic from storage
-        localStorage.removeItem("mnemonic");
+            //remove plaintext mnemonic from storage
+            localStorage.removeItem("mnemonic");
 
-        this.props.encryptMnemonic(existingMnemonic, pin);
-      } else if (!localStorage.getItem("mnemonic")) {
-        let mnemonic = this.handleGenerateMnemonic();
-        this.props.encryptMnemonic(mnemonic, pin);
-        this.setState({ mnemonic: null });
+            this.props.encryptMnemonic(existingMnemonic, pin);
+          } else if (!localStorage.getItem("mnemonic")) {
+            let mnemonic = this.handleGenerateMnemonic();
+            this.props.encryptMnemonic(mnemonic, pin);
+            this.setState({ mnemonic: null });
+          }
+        }
+        this.props.walletGen(pin);
+      } catch (e) {
+        console.log(`Wallet gen error: ${e}`);
+        this.setState({ isCreating: false });
+        alert(
+          `Looks like something went wrong. If this error persists, please reach out to support: https://discord.gg/A2DPmgn`
+        );
       }
-    }
-    this.props.walletGen(pin);
-    } catch (e) {
-      console.log(`Wallet gen error: ${e}`);
-      this.setState({isCreating:false});
-      alert(`Looks like something went wrong. If this error persists, please reach out to support: https://discord.gg/A2DPmgn`);
+      this.setState({
+        nextDisabled: false,
+        isCreating: false,
+        createSuccess: true,
+        index: index + 1
+      });
     }
     this.setState({
-      nextDisabled: false,
-      isCreating: false,
-      createSuccess: true,
-      index: index + 1
+      isCreating: false
     });
-  }
-  this.setState({
-    isCreating: false,
-  });
   }
 
   validatePasswordEquality(pin1, pin2) {
     console.log(`pin1: ${pin1} pin2: ${pin2}`);
     if (pin1 == pin2) {
       return true;
-    }else{
+    } else {
       this.setState({
-        onboardingPasswordErrorText: "Password Mismatch",
+        onboardingPasswordErrorText: "PINs don't match",
         onboardingPasswordError: true
       });
       return false;
-    }   
+    }
   }
 
   validatePasswordNotNull(setupType, pin, pin2) {
@@ -167,7 +178,7 @@ class SetupCard extends Component {
         });
         return false;
       }
-    }else if (setupType == "createPin" || setupType == "onboard"){
+    } else if (setupType == "createPin" || setupType == "onboard") {
       if (pin && pin2) {
         return true;
       } else {
@@ -227,16 +238,16 @@ class SetupCard extends Component {
           )
         },
         {
-          title: "Your Password",
+          title: "Your PIN",
           message2: (
             <Grid>
               {createSuccess ? (
                 <Typography>Success!</Typography>
               ) : (
                 <Typography>
-                  To continue, please set a password. You will be prompted for
-                  this password every time you access your card. We can't
-                  recover this password for you, so don't forget it!
+                  To continue, please set a six-digit PIN. You will be prompted for this
+                  PIN every time you access your card. We can't recover it for
+                  you, so don't forget it!
                 </Typography>
               )}
             </Grid>
@@ -249,26 +260,39 @@ class SetupCard extends Component {
                   style={{ padding: "2% 2% 2% 2%" }}
                   alignContent="center"
                 >
-                  <TextField
-                    className={classes.password}
-                    id="filled-password-input"
-                    label="Password"
-                    type="password"
-                    variant="outlined"
-                    onBlur={evt => this.setState({ pin: evt.target.value })}
-                    helperText={this.state.onboardingPasswordErrorText}
-                    error={this.state.onboardingPasswordError}
-                  />
-                  <TextField
-                    id="filled-password-input"
-                    label="Confirm Password"
-                    className={classes.password}
-                    type="password"
-                    onBlur={evt => this.setState({ pin2: evt.target.value })}
-                    variant="outlined"
-                    helperText={this.state.onboardingPasswordErrorText}
-                    error={this.state.onboardingPasswordError}
-                  />
+                  <Grid style={{ paddingLeft: "2%", width: "100%" }}>
+                  <Typography variant="h6">Create PIN:</Typography>
+                <ReactCodeInput
+                  type="number"
+                  isValid={!this.state.onboardingPasswordError}
+                  fields={6}
+                  onChange={val => this.handlePinFill(val)}
+                />
+              </Grid>
+              <Grid  style={{ paddingLeft: "2%", width: "100%" }}>
+              <Typography variant="h6">Confirm PIN:</Typography>
+                <ReactCodeInput
+                
+                  type="number"
+                  isValid={!this.state.onboardingPasswordError}
+                  fields={6}
+                  onChange={val => this.handlePin2Fill(val)}
+                />
+               <Grid style={{ width: "100%", marginBottom: "5%" }}>
+                {this.state.onboardingPasswordError ? (
+                  <span
+                    style={{
+                      paddingLeft: "3%",
+                      color: "red",
+                      fontSize: "20px"
+                    }}
+                  >
+                    {this.state.onboardingPasswordErrorText}
+                  </span>
+                ) : null}
+              </Grid>
+              </Grid>
+  
                   <div style={{ padding: "2% 2% 2% 2%" }}>
                     <Button
                       onClick={() =>
@@ -283,9 +307,14 @@ class SetupCard extends Component {
                       size="medium"
                       disabled={isCreating}
                     >
-                      Create Password
+                      Create PIN
                     </Button>
-                    {isCreating && <CircularProgress size={24} style={{marginTop:"10px"}}/>}
+                    {isCreating && (
+                      <CircularProgress
+                        size={24}
+                        style={{ marginTop: "10px" }}
+                      />
+                    )}
                   </div>
                 </Grid>
               )}
@@ -506,20 +535,30 @@ class SetupCard extends Component {
       const screens = [
         {
           title: "Welcome!",
-          message2: `Please enter your password`,
+          message2: `Please enter your PIN`,
           extra: (
-            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-              <TextField
-                fullWidth
-                className={classes.passwordInput}
-                id="filled-password-input"
-                label="Password"
-                type="password"
-                variant="outlined"
-                helperText={this.state.returningPasswordErrorText}
-                error={this.state.returningPasswordError}
-                onBlur={evt => this.setState({ pin: evt.target.value })}
-              />
+            <Grid wrap container style={{ padding: "2% 2% 2% 2%" }}>
+              <Grid style={{ paddingLeft: "2%", width: "100%" }}>
+                <ReactCodeInput
+                  type="number"
+                  isValid={!this.state.returningPasswordError}
+                  fields={6}
+                  onChange={val => this.handlePinFill(val)}
+                />
+              </Grid>
+              <Grid style={{ width: "100%", marginBottom: "5%" }}>
+                {this.state.returningPasswordError ? (
+                  <span
+                    style={{
+                      paddingLeft: "3%",
+                      color: "red",
+                      fontSize: "20px"
+                    }}
+                  >
+                    {this.state.returningPasswordErrorText}
+                  </span>
+                ) : null}
+              </Grid>
               <Button
                 fullWidth
                 onClick={() => this.onSubmitInputPin(this.state.pin)}
@@ -542,6 +581,17 @@ class SetupCard extends Component {
 
   //HANDLERS
 
+  handlePinFill = val => {
+    if (val.length === 6) {
+      this.setState({ pin: val }, () => console.log(this.state.pin));
+    }
+  };
+  handlePin2Fill = val => {
+    if (val.length === 6) {
+      this.setState({ pin2: val }, () => console.log(this.state.pin2));
+    }
+  };
+
   handleGenerateMnemonic = () => {
     const mnemonic = generateMnemonic();
     return mnemonic;
@@ -552,7 +602,7 @@ class SetupCard extends Component {
       const mnemonic = decryptMnemonic(encrypted, this.state.pin);
       return mnemonic;
     }
-    return "Mnemonic not set. Please go back and set a password!";
+    return "Mnemonic not set. Please go back and create a PIN!";
   };
 
   handleClickOpen = () => {
@@ -579,7 +629,11 @@ class SetupCard extends Component {
     if (nextDisabled) {
       this.setState({ nextDisabled: false });
     }
-    this.setState({ index: index - 1, createSuccess:false, isCreating:false });
+    this.setState({
+      index: index - 1,
+      createSuccess: false,
+      isCreating: false
+    });
   };
 
   handleClose = () => {

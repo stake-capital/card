@@ -138,6 +138,7 @@ class App extends React.Component {
 
     //Uncomment to test onboarding with new wallet
     //localStorage.removeItem("encryptedMnemonic")
+    //localStorage.removeItem("delegateSigner")
 
     // set public url
     publicUrl = window.location.origin.toLowerCase();

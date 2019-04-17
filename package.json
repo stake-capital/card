@@ -40,6 +40,7 @@
     "qrcode.react": "^0.9.2",
     "query-string": "^5.1.1",
     "react": "^16.6.3",
+    "react-code-input": "^3.8.1",
     "react-coin-icon": "^0.1.6",
     "react-copy-to-clipboard": "^5.0.1",
     "react-dom": "^16.6.3",
