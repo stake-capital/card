@@ -8,7 +8,12 @@ import DepositCard from "./components/depositCard";
 import { getConnextClient } from "connext/dist/Connext.js";
 import ProviderOptions from "./utils/ProviderOptions.ts";
 import clientProvider from "./utils/web3/clientProvider.ts";
-import { getWalletFromEncryptedMnemonic, generateMnemonic, encryptMnemonic, decryptMnemonic } from "./utils/walletGen";
+import {
+  getWalletFromEncryptedMnemonic,
+  generateMnemonic,
+  encryptMnemonic,
+  decryptMnemonic
+} from "./utils/walletGen";
 import { Paper, withStyles, Grid } from "@material-ui/core";
 import AppBarComponent from "./components/AppBar";
 import SettingsCard from "./components/settingsCard";
@@ -20,7 +25,7 @@ import RedeemCard from "./components/redeemCard";
 import SetupCard from "./components/setupCard";
 import Confirmations from "./components/Confirmations";
 import BigNumber from "bignumber.js";
-import {CurrencyType} from "connext/dist/state/ConnextState/CurrencyTypes";
+import { CurrencyType } from "connext/dist/state/ConnextState/CurrencyTypes";
 import CurrencyConvertable from "connext/dist/lib/currency/CurrencyConvertable";
 import getExchangeRates from "connext/dist/lib/getExchangeRates";
 import MySnackbar from "./components/snackBar";
@@ -47,7 +52,7 @@ const overrides = {
   mainnetEth: process.env.REACT_APP_MAINNET_ETH_OVERRIDE
 };
 
-const DEPOSIT_ESTIMATED_GAS = new BigNumber("700000") // 700k gas
+const DEPOSIT_ESTIMATED_GAS = new BigNumber("700000"); // 700k gas
 //const DEPOSIT_MINIMUM_WEI = new BigNumber(Web3.utils.toWei("0.020", "ether")); // 30 FIN
 const HUB_EXCHANGE_CEILING = new BigNumber(Web3.utils.toWei("69", "ether")); // 69 TST
 const CHANNEL_DEPOSIT_MAX = new BigNumber(Web3.utils.toWei("30", "ether")); // 30 TST
@@ -56,7 +61,7 @@ const styles = theme => ({
   paper: {
     width: "100%",
     padding: `0px ${theme.spacing.unit}px 0 ${theme.spacing.unit}px`,
-    [theme.breakpoints.up('sm')]: {
+    [theme.breakpoints.up("sm")]: {
       width: "450px",
       height: "650px",
       marginTop: "5%",
@@ -64,7 +69,7 @@ const styles = theme => ({
     },
     [theme.breakpoints.down(600)]: {
       "box-shadow": "0px 0px"
-    },
+    }
   },
   app: {
     display: "flex",
@@ -74,7 +79,7 @@ const styles = theme => ({
     fontFamily: ["proxima-nova", "sans-serif"],
     backgroundColor: "#FFF",
     width: "100%",
-    margin: "0px",
+    margin: "0px"
   },
   zIndex: 1000,
   grid: {}
@@ -124,7 +129,7 @@ class App extends React.Component {
       },
       browserMinimumBalance: null,
       setupType: null,
-      setupOpen:true
+      setupOpen: true
     };
 
     this.networkHandler = this.networkHandler.bind(this);
@@ -135,10 +140,9 @@ class App extends React.Component {
   // ************************************************* //
 
   async componentWillMount() {
-
     //Uncomment to test onboarding with new wallet
-    //localStorage.removeItem("encryptedMnemonic")
-    //localStorage.removeItem("delegateSigner")
+    //localStorage.removeItem("encryptedMnemonic");
+    //localStorage.removeItem("delegateSigner");
 
     // set public url
     publicUrl = window.location.origin.toLowerCase();
@@ -151,11 +155,11 @@ class App extends React.Component {
 
     if (encryptedMnemonic) {
       // set pin prompt state true
-      this.setState({setupType: "inputPin"})
+      this.setState({ setupType: "inputPin" });
     } else if (!encryptedMnemonic && localStorage.getItem("mnemonic")) {
-      this.setState({setupType: "createPin"})
+      this.setState({ setupType: "createPin" });
     } else {
-      this.setState({setupType: "onboard"})
+      this.setState({ setupType: "onboard" });
     }
   }
 
@@ -165,38 +169,44 @@ class App extends React.Component {
 
   async walletGen(pin) {
     let delegateSigner, mnemonic, encryptedMnemonic, address;
-    if(localStorage.getItem("encryptedMnemonic")){
+    if (localStorage.getItem("encryptedMnemonic")) {
       encryptedMnemonic = localStorage.getItem("encryptedMnemonic");
-      delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
-      console.log(address)
-    }else if(localStorage.getItem("mnemonic")){
+      delegateSigner = await getWalletFromEncryptedMnemonic(
+        encryptedMnemonic,
+        pin
+      );
+      console.log(address);
+    } else if (localStorage.getItem("mnemonic")) {
       mnemonic = localStorage.getItem("mnemonic");
-      encryptedMnemonic = encryptMnemonic(mnemonic, pin)
-      delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
-    }else{
+      encryptedMnemonic = encryptMnemonic(mnemonic, pin);
+      delegateSigner = await getWalletFromEncryptedMnemonic(
+        encryptedMnemonic,
+        pin
+      );
+    } else {
       throw "error getting wallet from mnemonic";
     }
-    if (!delegateSigner){
-      throw "Error: Passcode Wrong"
+    if (!delegateSigner) {
+      throw "Error: Passcode Wrong";
     }
     address = await delegateSigner.getAddressString();
-      // In case these exist, remove them
-      localStorage.removeItem("mnemonic")
-      localStorage.removeItem("privateKey")
+    // In case these exist, remove them
+    localStorage.removeItem("mnemonic");
+    localStorage.removeItem("privateKey");
 
-      this.setState({ delegateSigner, address });
-      store.dispatch({
-        type: "SET_WALLET",
-        text: delegateSigner
-      });
+    this.setState({ delegateSigner, address });
+    store.dispatch({
+      type: "SET_WALLET",
+      text: delegateSigner
+    });
 
-      await this.setWeb3();
-      await this.setConnext();
-      await this.setTokenContract();
+    await this.setWeb3();
+    await this.setConnext();
+    await this.setTokenContract();
 
-      await this.pollConnextState();
-      await this.setBrowserWalletMinimumBalance();
-      await this.poller();
+    await this.pollConnextState();
+    await this.setBrowserWalletMinimumBalance();
+    await this.poller();
   }
 
   // ************************************************* //
@@ -325,51 +335,44 @@ class App extends React.Component {
     });
     // start polling
     await connext.start();
-    this.setState({ loadingConnext: false })
+    this.setState({ loadingConnext: false });
   }
 
   async poller() {
     await this.autoDeposit();
     await this.autoSwap();
 
-    interval(
-      async (iteration, stop) => {
-        await this.autoDeposit();
-      },
-      5000
-    )
+    interval(async (iteration, stop) => {
+      await this.autoDeposit();
+    }, 5000);
 
-    interval(
-      async (iteration, stop) => {
-        await this.autoSwap();
-      },
-      1000
-    )
-
+    interval(async (iteration, stop) => {
+      await this.autoSwap();
+    }, 1000);
   }
 
   async setBrowserWalletMinimumBalance() {
-    const { customWeb3, connextState } = this.state
+    const { customWeb3, connextState } = this.state;
     if (!customWeb3 || !connextState) {
-      return
+      return;
     }
-    const defaultGas = new BigNumber(await customWeb3.eth.getGasPrice())
+    const defaultGas = new BigNumber(await customWeb3.eth.getGasPrice());
     // default connext multiple is 1.5, leave 2x for safety
-    const depositGasPrice = DEPOSIT_ESTIMATED_GAS
-      .multipliedBy(new BigNumber(2))
-      .multipliedBy(defaultGas)
+    const depositGasPrice = DEPOSIT_ESTIMATED_GAS.multipliedBy(
+      new BigNumber(2)
+    ).multipliedBy(defaultGas);
     // add dai conversion
     const minConvertable = new CurrencyConvertable(
-      CurrencyType.WEI, 
-      depositGasPrice, 
+      CurrencyType.WEI,
+      depositGasPrice,
       () => getExchangeRates(connextState)
-    )
-    const browserMinimumBalance = { 
-      wei: minConvertable.toWEI().amount, 
-      dai: minConvertable.toUSD().amount 
-    }
-    this.setState({ browserMinimumBalance })
-    return browserMinimumBalance
+    );
+    const browserMinimumBalance = {
+      wei: minConvertable.toWEI().amount,
+      dai: minConvertable.toUSD().amount
+    };
+    this.setState({ browserMinimumBalance });
+    return browserMinimumBalance;
   }
 
   async autoDeposit() {
@@ -381,14 +384,14 @@ class App extends React.Component {
       exchangeRate,
       channelState,
       rpcUrl,
-      browserMinimumBalance,
+      browserMinimumBalance
     } = this.state;
     if (!rpcUrl) {
       return;
     }
 
     if (!browserMinimumBalance) {
-      return
+      return;
     }
 
     const web3 = new Web3(rpcUrl);
@@ -424,7 +427,7 @@ class App extends React.Component {
     }
 
     if (balance !== "0" || tokenBalance !== "0") {
-      const minWei = new BigNumber(browserMinimumBalance.wei)
+      const minWei = new BigNumber(browserMinimumBalance.wei);
       if (new BigNumber(balance).lt(minWei)) {
         // don't autodeposit anything under the threshold
         // update the refunding variable before returning
@@ -458,9 +461,7 @@ class App extends React.Component {
       }
 
       let channelDeposit = {
-        amountWei: new BigNumber(balance)
-          .minus(minWei)
-          .toFixed(0),
+        amountWei: new BigNumber(balance).minus(minWei).toFixed(0),
         amountToken: tokenBalance
       };
 
@@ -541,7 +542,7 @@ class App extends React.Component {
         value: wei
       });
       const tx = await customWeb3.eth.getTransaction(res.transactionHash);
-      console.log(`Returned deposit tx: ${JSON.stringify(tx, null, 2)}`)
+      console.log(`Returned deposit tx: ${JSON.stringify(tx, null, 2)}`);
       // calculate expected balance after transaction and set in local
       // storage. once the tx is submitted, the wallet balance should
       // always be lower than the expected balance, because of added
@@ -563,7 +564,7 @@ class App extends React.Component {
       CurrencyType.BEI,
       BigNumber.min(HUB_EXCHANGE_CEILING, CHANNEL_DEPOSIT_MAX),
       () => getExchangeRates(connextState)
-    ).toWEI().amountBigNumber
+    ).toWEI().amountBigNumber;
 
     const weiToRefund = BigNumber.max(
       new BigNumber(wei).minus(ceilingWei),
@@ -594,45 +595,67 @@ class App extends React.Component {
     const refundStr = localStorage.getItem("refunding");
     status.hasRefund = !!refundStr ? refundStr.split(",") : null;
     if (runtime.syncResultsFromHub[0]) {
-      console.log(`Hub Sync results: ${JSON.stringify(runtime.syncResultsFromHub[0],null,2)}`)
+      console.log(
+        `Hub Sync results: ${JSON.stringify(
+          runtime.syncResultsFromHub[0],
+          null,
+          2
+        )}`
+      );
       switch (runtime.syncResultsFromHub[0].update.reason) {
         case "ProposePendingDeposit":
-          if(runtime.syncResultsFromHub[0].update.args.depositTokenUser !== "0" ||
-            runtime.syncResultsFromHub[0].update.args.depositWeiUser !== "0" ) {
-            this.closeConfirmations()
+          if (
+            runtime.syncResultsFromHub[0].update.args.depositTokenUser !==
+              "0" ||
+            runtime.syncResultsFromHub[0].update.args.depositWeiUser !== "0"
+          ) {
+            this.closeConfirmations();
             status.deposit = "PENDING";
             status.depositHistory = "PENDING";
-            console.log(`ProposePendingDeposit! New status: ${JSON.stringify(status)}`)
+            console.log(
+              `ProposePendingDeposit! New status: ${JSON.stringify(status)}`
+            );
           } else {
-            console.log(`ProposePendingDeposit! Nothing to do`)
+            console.log(`ProposePendingDeposit! Nothing to do`);
           }
           break;
         case "ProposePendingWithdrawal":
-          if(runtime.syncResultsFromHub[0].update.args.withdrawalTokenUser !== "0" ||
-            runtime.syncResultsFromHub[0].update.args.withdrawalWeiUser !== "0" ) {
-            this.closeConfirmations()
+          if (
+            runtime.syncResultsFromHub[0].update.args.withdrawalTokenUser !==
+              "0" ||
+            runtime.syncResultsFromHub[0].update.args.withdrawalWeiUser !== "0"
+          ) {
+            this.closeConfirmations();
             status.withdraw = "PENDING";
             status.withdrawHistory = "PENDING";
-            console.log(`ProposePendingWithdrawal! New status: ${JSON.stringify(status)}`)
+            console.log(
+              `ProposePendingWithdrawal! New status: ${JSON.stringify(status)}`
+            );
           } else {
-            console.log(`ProposePendingWithdrawal! Nothing to do`)
+            console.log(`ProposePendingWithdrawal! Nothing to do`);
           }
           break;
         case "ConfirmPending":
-          if(this.state.status.depositHistory === "PENDING") {
-            this.closeConfirmations("deposit")
+          if (this.state.status.depositHistory === "PENDING") {
+            this.closeConfirmations("deposit");
             status.deposit = "SUCCESS";
-            console.log(`New status: ${JSON.stringify(status)}`)
-          } else if(this.state.status.withdrawHistory === "PENDING") {
-            this.closeConfirmations("withdraw")
+            console.log(`New status: ${JSON.stringify(status)}`);
+          } else if (this.state.status.withdrawHistory === "PENDING") {
+            this.closeConfirmations("withdraw");
             status.withdraw = "SUCCESS";
-            console.log(`ConfirmPending! New status: ${JSON.stringify(status)}`)
+            console.log(
+              `ConfirmPending! New status: ${JSON.stringify(status)}`
+            );
           } else {
-            console.log(`ConfirmPending! Nothing to do`)
+            console.log(`ConfirmPending! Nothing to do`);
           }
           break;
         default:
-          console.log(`Nothing to do for update of type: ${runtime.syncResultsFromHub[0].update.reason}`)
+          console.log(
+            `Nothing to do for update of type: ${
+              runtime.syncResultsFromHub[0].update.reason
+            }`
+          );
       }
     }
     this.setState({ status });
@@ -666,28 +689,27 @@ class App extends React.Component {
   }
 
   async closeConfirmations(type) {
-    const { status } = this.state
-    if(!type) {
-      status.deposit = '';
-      status.depositHistory = '';
-      status.withdraw = '';
-      status.withdrawHistory = '';
+    const { status } = this.state;
+    if (!type) {
+      status.deposit = "";
+      status.depositHistory = "";
+      status.withdraw = "";
+      status.withdrawHistory = "";
     }
     // Hack to keep deposit/withdraw context for confirm pending notifications
-    if(type === "deposit") {
-      status.depositHistory = status.deposit
+    if (type === "deposit") {
+      status.depositHistory = status.deposit;
     }
-    if(type === "withdraw") {
-      status.withdrawHistory = status.withdraw
+    if (type === "withdraw") {
+      status.withdrawHistory = status.withdraw;
     }
-    console.log(`New status: ${JSON.stringify(status)}`)
+    console.log(`New status: ${JSON.stringify(status)}`);
     this.setState({ status });
   }
 
-
   async closeModal() {
     await this.setState({ loadingConnext: false });
-  };
+  }
 
   render() {
     const {
@@ -740,9 +762,10 @@ class App extends React.Component {
                       encryptMnemonic={encryptMnemonic}
                       walletGen={this.walletGen.bind(this)}
                       open={this.state.setupOpen}
-                      setCard = { (evt) => { this.setState({
-                        setupOpen: evt
-                        })
+                      setCard={evt => {
+                        this.setState({
+                          setupOpen: evt
+                        });
                       }}
                       setupType={this.state.setupType}
                       browserMinimumBalance={browserMinimumBalance}
@@ -756,6 +779,7 @@ class App extends React.Component {
             <Route
               path="/deposit"
               render={props => (
+                <Grid>
                 <DepositCard
                   {...props}
                   address={address}
@@ -764,16 +788,36 @@ class App extends React.Component {
                   maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
                   connextState={connextState}
                 />
+                {this.state.setupOpen && (
+                  <SetupCard
+                    {...props}
+                    encryptMnemonic={encryptMnemonic}
+                    walletGen={this.walletGen.bind(this)}
+                    open={this.state.setupOpen}
+                    setCard={evt => {
+                      this.setState({
+                        setupOpen: evt
+                      });
+                    }}
+                    setupType={this.state.setupType}
+                    browserMinimumBalance={browserMinimumBalance}
+                    maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
+                    connextState={connextState}
+                  />
+                )}
+              </Grid>
               )}
             />
             <Route
               path="/settings"
               render={props => (
+                <Grid>
                 <SettingsCard
                   {...props}
-                  setCard = { (evt) => { this.setState({
-                    setupOpen: evt
-                    })
+                  setCard={evt => {
+                    this.setState({
+                      setupOpen: evt
+                    });
                   }}
                   networkHandler={this.networkHandler}
                   connext={connext}
@@ -781,11 +825,30 @@ class App extends React.Component {
                   exchangeRate={exchangeRate}
                   runtime={this.state.runtime}
                 />
+                {this.state.setupOpen && (
+                  <SetupCard
+                    {...props}
+                    encryptMnemonic={encryptMnemonic}
+                    walletGen={this.walletGen.bind(this)}
+                    open={this.state.setupOpen}
+                    setCard={evt => {
+                      this.setState({
+                        setupOpen: evt
+                      });
+                    }}
+                    setupType={this.state.setupType}
+                    browserMinimumBalance={browserMinimumBalance}
+                    maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
+                    connextState={connextState}
+                  />
+                )}
+              </Grid>
               )}
             />
             <Route
               path="/receive"
               render={props => (
+                <Grid>
                 <ReceiveCard
                   {...props}
                   address={address}
@@ -794,26 +857,64 @@ class App extends React.Component {
                   channelState={channelState}
                   publicUrl={publicUrl}
                 />
+                {this.state.setupOpen && (
+                  <SetupCard
+                    {...props}
+                    encryptMnemonic={encryptMnemonic}
+                    walletGen={this.walletGen.bind(this)}
+                    open={this.state.setupOpen}
+                    setCard={evt => {
+                      this.setState({
+                        setupOpen: evt
+                      });
+                    }}
+                    setupType={this.state.setupType}
+                    browserMinimumBalance={browserMinimumBalance}
+                    maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
+                    connextState={connextState}
+                  />
+                )}
+              </Grid>
               )}
             />
             <Route
               path="/send"
               render={props => (
-                <SendCard
-                  {...props}
-                  web3={customWeb3}
-                  connext={connext}
-                  address={address}
-                  channelState={channelState}
-                  publicUrl={publicUrl}
-                  scanArgs={sendScanArgs}
-                  connextState={connextState}
-                />
+                <Grid>
+                  <SendCard
+                    {...props}
+                    web3={customWeb3}
+                    connext={connext}
+                    address={address}
+                    channelState={channelState}
+                    publicUrl={publicUrl}
+                    scanArgs={sendScanArgs}
+                    connextState={connextState}
+                  />
+                  {this.state.setupOpen && (
+                    <SetupCard
+                      {...props}
+                      encryptMnemonic={encryptMnemonic}
+                      walletGen={this.walletGen.bind(this)}
+                      open={this.state.setupOpen}
+                      setCard={evt => {
+                        this.setState({
+                          setupOpen: evt
+                        });
+                      }}
+                      setupType={this.state.setupType}
+                      browserMinimumBalance={browserMinimumBalance}
+                      maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
+                      connextState={connextState}
+                    />
+                  )}
+                </Grid>
               )}
             />
             <Route
               path="/redeem"
               render={props => (
+                <Grid>
                 <RedeemCard
                   {...props}
                   publicUrl={publicUrl}
@@ -821,11 +922,30 @@ class App extends React.Component {
                   channelState={channelState}
                   connextState={connextState}
                 />
+                {this.state.setupOpen && (
+                  <SetupCard
+                    {...props}
+                    encryptMnemonic={encryptMnemonic}
+                    walletGen={this.walletGen.bind(this)}
+                    open={this.state.setupOpen}
+                    setCard={evt => {
+                      this.setState({
+                        setupOpen: evt
+                      });
+                    }}
+                    setupType={this.state.setupType}
+                    browserMinimumBalance={browserMinimumBalance}
+                    maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
+                    connextState={connextState}
+                  />
+                )}
+              </Grid>
               )}
             />
             <Route
               path="/cashout"
               render={props => (
+                <Grid>
                 <CashOutCard
                   {...props}
                   address={address}
@@ -837,12 +957,49 @@ class App extends React.Component {
                   connextState={connextState}
                   runtime={runtime}
                 />
+                {this.state.setupOpen && (
+                  <SetupCard
+                    {...props}
+                    encryptMnemonic={encryptMnemonic}
+                    walletGen={this.walletGen.bind(this)}
+                    open={this.state.setupOpen}
+                    setCard={evt => {
+                      this.setState({
+                        setupOpen: evt
+                      });
+                    }}
+                    setupType={this.state.setupType}
+                    browserMinimumBalance={browserMinimumBalance}
+                    maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
+                    connextState={connextState}
+                  />
+                )}
+              </Grid>
               )}
             />
             <Route
               path="/support"
               render={props => (
+                <Grid>
                 <SupportCard {...props} channelState={channelState} />
+                {this.state.setupOpen && (
+                  <SetupCard
+                    {...props}
+                    encryptMnemonic={encryptMnemonic}
+                    walletGen={this.walletGen.bind(this)}
+                    open={this.state.setupOpen}
+                    setCard={evt => {
+                      this.setState({
+                        setupOpen: evt
+                      });
+                    }}
+                    setupType={this.state.setupType}
+                    browserMinimumBalance={browserMinimumBalance}
+                    maxTokenDeposit={CHANNEL_DEPOSIT_MAX.toString()}
+                    connextState={connextState}
+                  />
+                )}
+              </Grid>
               )}
             />
           </Paper>
