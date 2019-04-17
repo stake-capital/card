@@ -26,12 +26,18 @@ export async function getWalletFromEncryptedMnemonic(encryptedMnemonic, secret) 
       .getWallet();
 
     // set in case this is first call
-    localStorage.setItem("delegateSigner", wallet.getAddressString());
-    // update refunding variable on import
-    localStorage.removeItem("refunding");
-    localStorage.removeItem("maxBalanceAfterRefund");
-    
-    return wallet;
+    const existingAddress = localStorage.getItem("delegateSigner");
+    console.log(`existing address: ${existingAddress}`)
+    console.log(`new wallet string: ${wallet.getAddressString()}`)
+    if(existingAddress && (existingAddress !== wallet.getAddressString())){
+        throw "Address mismatch. Password likely wrong."
+    }else if((!existingAddress) || (existingAddress === wallet.getAddressString())){
+          // update refunding variable on import
+        localStorage.removeItem("refunding");
+        localStorage.removeItem("maxBalanceAfterRefund");
+        localStorage.setItem("delegateSigner", wallet.getAddressString());
+        return wallet;
+    }   
   } catch (e) {
     console.log(`error in WalletGen`);
     console.log(e);

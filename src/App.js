@@ -167,34 +167,35 @@ class App extends React.Component {
     if(localStorage.getItem("encryptedMnemonic")){
       encryptedMnemonic = localStorage.getItem("encryptedMnemonic");
       delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
-      address = await delegateSigner.getAddressString();
       console.log(address)
     }else if(localStorage.getItem("mnemonic")){
       mnemonic = localStorage.getItem("mnemonic");
       encryptedMnemonic = encryptMnemonic(mnemonic, pin)
       delegateSigner = await getWalletFromEncryptedMnemonic(encryptedMnemonic, pin);
-      address = await delegateSigner.getAddressString();
     }else{
       throw "error getting wallet from mnemonic";
     }
+    if (!delegateSigner){
+      throw "Error: Passcode Wrong"
+    }
+    address = await delegateSigner.getAddressString();
+      // In case these exist, remove them
+      localStorage.removeItem("mnemonic")
+      localStorage.removeItem("privateKey")
 
-    // In case these exist, remove them
-    localStorage.removeItem("mnemonic")
-    localStorage.removeItem("privateKey")
+      this.setState({ delegateSigner, address });
+      store.dispatch({
+        type: "SET_WALLET",
+        text: delegateSigner
+      });
 
-    this.setState({ delegateSigner, address });
-    store.dispatch({
-      type: "SET_WALLET",
-      text: delegateSigner
-    });
+      await this.setWeb3();
+      await this.setConnext();
+      await this.setTokenContract();
 
-    await this.setWeb3();
-    await this.setConnext();
-    await this.setTokenContract();
-
-    await this.pollConnextState();
-    await this.setBrowserWalletMinimumBalance();
-    await this.poller();
+      await this.pollConnextState();
+      await this.setBrowserWalletMinimumBalance();
+      await this.poller();
   }
 
   // ************************************************* //

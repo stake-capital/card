@@ -28,12 +28,12 @@ const styles = theme => ({
     width: "40px",
     height: "40px"
   },
-  password:{
-    width:"40%",
-    padding: "2% 2% 2% 2%",
+  password: {
+    width: "40%",
+    padding: "2% 2% 2% 2%"
   },
-  passwordInput:{
-    padding: "2% 2% 2% 2%",
+  passwordInput: {
+    padding: "2% 2% 2% 2%"
   }
 });
 
@@ -78,18 +78,27 @@ class SetupCard extends Component {
       mnemonic: null,
       nextDisabled: false,
       isCreating: false,
-      createSuccess: false
+      createSuccess: false,
+      returningPasswordErrorText: null,
+      returningPasswordError: false,
+      onboardingPasswordErrorText: null,
+      onboardingPasswordError: false
     };
   }
 
   // Login with pin
-  onSubmitInputPin(pin) {
+  async onSubmitInputPin(pin) {
     try {
-      this.props.walletGen(pin);
-      this.handleClose();
+      const valid = this.validatePasswordNotNull(this.props.setupType,this.state.pin);
+      if (valid) {
+        await this.props.walletGen(pin);
+        this.handleClose();
+      }
     } catch (e) {
-      console.log(`walletGen error`);
-      alert(`Password incorrect. If this error persists, please reach out to support: https://discord.gg/A2DPmgn`);
+      console.log(`walletGen error ${e}`);
+      this.setState({returningPasswordError:true, returningPasswordErrorText:
+        `Password incorrect. If this error persists, please reach out to support: https://discord.gg/A2DPmgn`}
+      );
     }
   }
 
@@ -98,6 +107,10 @@ class SetupCard extends Component {
     console.log(this.state.pin, this.state.pin2);
     const { pin, pin2, index, isCreating } = this.state;
     this.setState({ isCreating: true });
+    const passwordsEqual = this.validatePasswordEquality(pin, pin2);
+    const passwordsNotNull = this.validatePasswordNotNull(this.props.setupType, pin, pin2);
+    if (passwordsEqual && passwordsNotNull) {
+    try{
     if (!localStorage.getItem("encryptedMnemonic")) {
       if (localStorage.getItem("mnemonic")) {
         let existingMnemonic = localStorage.getItem("mnemonic");
@@ -112,32 +125,69 @@ class SetupCard extends Component {
         this.setState({ mnemonic: null });
       }
     }
-    const passwordValidated = this.validatePassword(pin, pin2);
-    try {
-      if (passwordValidated) {
-        this.props.walletGen(pin);
-      } else {
-        alert(`Passwords don't match. Please try again!`);
-        throw "password mismatch";
-      }
+    this.props.walletGen(pin);
     } catch (e) {
       console.log(`Wallet gen error: ${e}`);
+      this.setState({isCreating:false});
+      alert(`Looks like something went wrong. If this error persists, please reach out to support: https://discord.gg/A2DPmgn`);
     }
     this.setState({
       nextDisabled: false,
       isCreating: false,
       createSuccess: true,
-      index: index+1
+      index: index + 1
     });
   }
+  this.setState({
+    isCreating: false,
+  });
+  }
 
-  validatePassword(pin1, pin2) {
+  validatePasswordEquality(pin1, pin2) {
     console.log(`pin1: ${pin1} pin2: ${pin2}`);
     if (pin1 == pin2) {
       return true;
-    }
-    return false;
+    }else{
+      this.setState({
+        onboardingPasswordErrorText: "Password Mismatch",
+        onboardingPasswordError: true
+      });
+      return false;
+    }   
   }
+
+  validatePasswordNotNull(setupType, pin, pin2) {
+    if (setupType == "inputPin") {
+      if (pin) {
+        return true;
+      } else {
+        this.setState({
+          returningPasswordErrorText: "Field Required",
+          returningPasswordError: true
+        });
+        return false;
+      }
+    }else if (setupType == "createPin" || setupType == "onboard"){
+      if (pin && pin2) {
+        return true;
+      } else {
+        this.setState({
+          onboardingPasswordErrorText: "Field Required",
+          onboardingPasswordError: true
+        });
+        return false;
+      }
+    }
+  }
+
+  // validatePasswordUnlocksCorrectWallet(pin){
+  //   const encrypted = localStorage.getItem("encryptedMnemonic");
+  //   if (encrypted && this.state.pin) {
+  //     const mnemonic = decryptMnemonic(encrypted, this.state.pin);
+  //     return mnemonic;
+  //   }
+  //   return "Mnemonic not set. Please go back and set a password!";
+  // }
 
   //Onboarding Screens
 
@@ -182,7 +232,7 @@ class SetupCard extends Component {
             <Grid>
               {createSuccess ? (
                 <Typography>Success!</Typography>
-              ):(
+              ) : (
                 <Typography>
                   To continue, please set a password. You will be prompted for
                   this password every time you access your card. We can't
@@ -193,8 +243,12 @@ class SetupCard extends Component {
           ),
           extra: (
             <Grid wrap>
-              {createSuccess ? (null):(
-                <Grid container style={{ padding: "2% 2% 2% 2%" }} alignContent="center">
+              {createSuccess ? null : (
+                <Grid
+                  container
+                  style={{ padding: "2% 2% 2% 2%" }}
+                  alignContent="center"
+                >
                   <TextField
                     className={classes.password}
                     id="filled-password-input"
@@ -202,6 +256,8 @@ class SetupCard extends Component {
                     type="password"
                     variant="outlined"
                     onBlur={evt => this.setState({ pin: evt.target.value })}
+                    helperText={this.state.onboardingPasswordErrorText}
+                    error={this.state.onboardingPasswordError}
                   />
                   <TextField
                     id="filled-password-input"
@@ -210,8 +266,10 @@ class SetupCard extends Component {
                     type="password"
                     onBlur={evt => this.setState({ pin2: evt.target.value })}
                     variant="outlined"
+                    helperText={this.state.onboardingPasswordErrorText}
+                    error={this.state.onboardingPasswordError}
                   />
-                  <div style={{padding:"2% 2% 2% 2%"}}>
+                  <div style={{ padding: "2% 2% 2% 2%" }}>
                     <Button
                       onClick={() =>
                         this.onSubmitOnboardOrCreate(
@@ -227,7 +285,7 @@ class SetupCard extends Component {
                     >
                       Create Password
                     </Button>
-                    {isCreating && <CircularProgress size={24} />}
+                    {isCreating && <CircularProgress size={24} style={{marginTop:"10px"}}/>}
                   </div>
                 </Grid>
               )}
@@ -236,7 +294,7 @@ class SetupCard extends Component {
           buttons: (
             <Grid>
               <Button
-                onClick={this.handleClickPrevious}
+                onClick={this.handleClickPreviousPw}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
@@ -288,7 +346,7 @@ class SetupCard extends Component {
           buttons: (
             <Grid>
               <Button
-                onClick={this.handleClickPrevious}
+                onClick={this.handleClickPreviousPw}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
@@ -317,19 +375,21 @@ class SetupCard extends Component {
               <p>To get started, send some funds to the address above!</p>
               <p>
                 <span style={{ fontWeight: "bold" }}>
-                  Minimum deposit (covers gas costs):<br />
+                  Minimum deposit (covers gas costs):
+                  <br />
                 </span>{" "}
                 {minEth || "?.??"} ETH ({minDai || "?.??"})<br />
                 <span style={{ fontWeight: "bold" }}>
-                  Maximum deposit (for your protection):<br />
+                  Maximum deposit (for your protection):
+                  <br />
                 </span>{" "}
                 {maxEth || "?.??"} ETH ({maxDai || "?.??"})
               </p>
               <p>
-              Don't have any ETH or need a refresher on how to send it?{" "}
-              <a href="https://www.coinbase.com/">Coinbase</a> is a good place
-              to get started.{" "}
-            </p>
+                Don't have any ETH or need a refresher on how to send it?{" "}
+                <a href="https://www.coinbase.com/">Coinbase</a> is a good place
+                to get started.{" "}
+              </p>
             </div>
           ),
           extra: (
@@ -450,14 +510,16 @@ class SetupCard extends Component {
           extra: (
             <Grid container style={{ padding: "2% 2% 2% 2%" }}>
               <TextField
-              fullWidth
-                    className={classes.passwordInput}
-                    id="filled-password-input"
-                    label="Password"
-                    type="password"
-                    variant="outlined"
-                    onBlur={evt => this.setState({ pin: evt.target.value })}
-                />
+                fullWidth
+                className={classes.passwordInput}
+                id="filled-password-input"
+                label="Password"
+                type="password"
+                variant="outlined"
+                helperText={this.state.returningPasswordErrorText}
+                error={this.state.returningPasswordError}
+                onBlur={evt => this.setState({ pin: evt.target.value })}
+              />
               <Button
                 fullWidth
                 onClick={() => this.onSubmitInputPin(this.state.pin)}
@@ -507,10 +569,17 @@ class SetupCard extends Component {
 
   handleClickPrevious = () => {
     const { index, nextDisabled } = this.state;
-    if(nextDisabled){
-      this.setState({nextDisabled:false});
+    if (nextDisabled) {
+      this.setState({ nextDisabled: false });
     }
     this.setState({ index: index - 1 });
+  };
+  handleClickPreviousPw = () => {
+    const { index, nextDisabled } = this.state;
+    if (nextDisabled) {
+      this.setState({ nextDisabled: false });
+    }
+    this.setState({ index: index - 1, createSuccess:false, isCreating:false });
   };
 
   handleClose = () => {
@@ -620,15 +689,15 @@ class SetupCard extends Component {
                 <DialogTitle variant="h5">{display[index].title}</DialogTitle>
               </Grid>
               <DialogContent>
-                  {display[index].message2 ? (
-                    <DialogContentText variant="body1">
-                      {display[index].message2}
-                    </DialogContentText>
-                  ) : null}
-                </DialogContent>
+                {display[index].message2 ? (
+                  <DialogContentText variant="body1">
+                    {display[index].message2}
+                  </DialogContentText>
+                ) : null}
+              </DialogContent>
 
               {display[index].extra && (
-                <Grid item xs={12} style={{marginTop:"-4%"}}>
+                <Grid item xs={12} style={{ marginTop: "-4%" }}>
                   {display[index].extra}
                 </Grid>
               )}
@@ -662,5 +731,3 @@ class SetupCard extends Component {
 }
 
 export default withStyles(styles)(SetupCard);
-
-
