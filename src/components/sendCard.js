@@ -224,9 +224,10 @@ class PayCard extends Component {
                 : "0",
               amountWei: "0"
             },
-            type: "PT_OPTIMISTIC"
+            type: "PT_OPTIMISTIC",
           }
-        ]
+        ],
+        meta: {},
       },
       addressError: null,
       balanceError: null,
