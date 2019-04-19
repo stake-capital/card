@@ -220,7 +220,13 @@ class SetupCard extends Component {
           message: `This is beta software, so if you run into any trouble 
                 please contact us via our Support chat (accessible in the Settings screen).`,
           buttons: (
-            <Grid>
+            <Grid
+              container
+              direction="row"
+              justify="flex-end"
+              alignContent="center"
+              spacing={0}
+            >
               <Button
                 onClick={this.handleClickNext}
                 className={classes.button}
@@ -332,7 +338,7 @@ class SetupCard extends Component {
           title: "Your Recovery Phrase",
           message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
           extra: (
-            <Grid item xs style={{ padding: "2% 2% 2% 2%" }}>
+            <Grid item xs>
               <CopyToClipboard text={mnemonic} color="primary">
                 <Button
                   className={classes.button}
