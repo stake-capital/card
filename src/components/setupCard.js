@@ -597,10 +597,18 @@ class SetupCard extends Component {
     return mnemonic;
   };
   handleDecryptMnemonic = () => {
+    console.log(this.state.pin)
     const encrypted = localStorage.getItem("encryptedMnemonic");
     if (encrypted && this.state.pin) {
-      const mnemonic = decryptMnemonic(encrypted, this.state.pin);
-      return mnemonic;
+      var secret = this.state.pin;
+      console.log(secret)
+      try{
+        const mnemonic = decryptMnemonic(encrypted, secret);
+        return mnemonic;
+      }catch(e){
+        alert(`Whoops! Looks like something went wrong. We'll refresh the page for you when you dismiss this message.`)
+        window.location.reload();
+      }
     }
     return "Mnemonic not set. Please go back and create a PIN!";
   };
