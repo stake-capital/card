@@ -80,7 +80,8 @@ class SetupCard extends Component {
       returningPasswordErrorText: null,
       returningPasswordError: false,
       onboardingPasswordErrorText: null,
-      onboardingPasswordError: false
+      onboardingPasswordError: false,
+      pinOkay:false
     };
   }
 
@@ -93,13 +94,14 @@ class SetupCard extends Component {
       );
       if (valid) {
         await this.props.walletGen(pin);
+        this.setState({pinOkay:true})
         this.handleClose();
       }
     } catch (e) {
       console.log(`walletGen error ${e}`);
       this.setState({
         returningPasswordError: true,
-        returningPasswordErrorText: `Passcode incorrect. If you're entering the correct password and this error persists, please reach out to support: https://discord.gg/A2DPmgn`
+        returningPasswordErrorText: `PIN incorrect. If you're entering the correct PIN and this error persists, please reach out to support: https://discord.gg/A2DPmgn`
       });
     }
   }
@@ -561,17 +563,21 @@ class SetupCard extends Component {
                 )}
 
                 {this.state.returningPasswordError && this.state.returningPasswordErrorText != "Field Required" && (
-                  <Typography
+                 <DialogContentText
+                 style={{
+                  textAlign:"left", width:"40%",marginBottom:"40px"}}> <Typography
                     variant="body2"
                     style={{
-                      right: "0",
+                      justifyContent:"right",
+                      right: "10",
                       position: "absolute",
                       color: "red",
-                      fontSize: "20px"
+                      fontSize: "12px"
                     }}
                   >
                     {this.state.returningPasswordErrorText}
                   </Typography>
+                  </DialogContentText>
                 )}
               </Grid>
             </Grid>
@@ -579,7 +585,7 @@ class SetupCard extends Component {
           buttons: (
             <Grid container justify="flex-end" spacing={0}>
               <Button
-                onClick={() => this.onSubmitInputPin(this.state.pin)}
+                onClick={async() => await this.onSubmitInputPin(this.state.pin)}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
@@ -619,13 +625,14 @@ class SetupCard extends Component {
   handleDecryptMnemonic = () => {
     const encrypted = localStorage.getItem("encryptedMnemonic");
     if (encrypted && this.state.pin) {
-      var secret = this.state.pin;
-      try{
+      var secret = this.state.pin.toString();
+      console.log(`PIN type: ${typeof this.state.pin}`)
+     try{
         const mnemonic = decryptMnemonic(encrypted, secret);
         return mnemonic;
       }catch(e){
-        alert(`Whoops! Looks like something went wrong. We'll refresh the page for you when you dismiss this message.`)
-        window.location.reload();
+         alert(`Whoops! Looks like something went wrong. We'll refresh the page for you when you dismiss this message.`)
+         window.location.reload();
       }
     }
     return "Mnemonic not set. Please go back and create a PIN!";
@@ -691,7 +698,8 @@ class SetupCard extends Component {
       type,
       nextDisabled,
       createSuccess,
-      isCreating
+      isCreating,
+      pinOkay
     } = this.state;
 
     // get proper display values
@@ -724,7 +732,12 @@ class SetupCard extends Component {
     }
 
     // const mnemonic = this.handleGenerateMnemonic();
-    const mnemonic = this.handleDecryptMnemonic() || "{}";
+    let mnemonic;
+    if(pinOkay){
+       mnemonic = this.handleDecryptMnemonic() || "{}";
+    }else{
+      mnemonic = "No pin"
+    }
 
     //setup type
     const display = this.onboardingScreens(
