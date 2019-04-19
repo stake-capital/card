@@ -4,15 +4,12 @@ import {
   withStyles,
   DialogTitle,
   DialogContent,
-  DialogActions,
   Button,
   Dialog,
   Typography,
   DialogContentText,
   LinearProgress,
   Tooltip,
-  Input,
-  TextField,
   CircularProgress
 } from "@material-ui/core";
 import { CurrencyType } from "connext/dist/state/ConnextState/CurrencyTypes";
@@ -230,7 +227,7 @@ class SetupCard extends Component {
                 variant="outlined"
                 color="primary"
                 size="small"
-                disabled={nextDisabled}
+                disabled={createSuccess}
               >
                 Next
               </Button>
@@ -239,29 +236,15 @@ class SetupCard extends Component {
         },
         {
           title: "Your PIN",
-          message2: (
-            <Grid>
-              {createSuccess ? (
-                <Typography>Success!</Typography>
-              ) : (
-                <Typography>
-                  To continue, please set a six-digit PIN. You will be prompted for this
-                  PIN every time you access your card. We can't recover it for
-                  you, so don't forget it!
-                </Typography>
-              )}
-            </Grid>
-          ),
-          extra: (
-            <Grid wrap>
-              {createSuccess ? null : (
-                <Grid
-                  container
-                  style={{ padding: "2% 2% 2% 2%" }}
-                  alignContent="center"
-                >
-                  <Grid style={{ paddingLeft: "2%", width: "100%" }}>
-                  <Typography variant="h6">Create PIN:</Typography>
+          message: createSuccess
+            ? `Success!`
+            : `To continue, please set a six-digit PIN. ` +
+              `You will be prompted for this PIN every time you access your` +
+              ` card. We can't recover it for you, so don't forget it!`,
+          extra: createSuccess ? null : (
+            <Grid container justify="center">
+              <Grid item xs={12}>
+                <Typography variant="h6">Create PIN:</Typography>
                 <ReactCodeInput
                   type="number"
                   isValid={!this.state.onboardingPasswordError}
@@ -269,20 +252,21 @@ class SetupCard extends Component {
                   onChange={val => this.handlePinFill(val)}
                 />
               </Grid>
-              <Grid  style={{ paddingLeft: "2%", width: "100%" }}>
-              <Typography variant="h6">Confirm PIN:</Typography>
+
+              <Grid item xs={12}>
+                <Typography variant="h6">Confirm PIN:</Typography>
                 <ReactCodeInput
-                
                   type="number"
                   isValid={!this.state.onboardingPasswordError}
                   fields={6}
                   onChange={val => this.handlePin2Fill(val)}
                 />
-               <Grid style={{ width: "100%", marginBottom: "5%" }}>
+              </Grid>
+
+              <Grid item xs={12}>
                 {this.state.onboardingPasswordError ? (
                   <span
                     style={{
-                      paddingLeft: "3%",
                       color: "red",
                       fontSize: "20px"
                     }}
@@ -291,57 +275,56 @@ class SetupCard extends Component {
                   </span>
                 ) : null}
               </Grid>
-              </Grid>
-  
-                  <div style={{ padding: "2% 2% 2% 2%" }}>
-                    <Button
-                      onClick={() =>
-                        this.onSubmitOnboardOrCreate(
-                          this.state.pin,
-                          this.state.pin2
-                        )
-                      }
-                      className={classes.button}
-                      variant="outlined"
-                      color="primary"
-                      size="medium"
-                      disabled={isCreating}
-                    >
-                      Create PIN
-                    </Button>
-                    {isCreating && (
-                      <CircularProgress
-                        size={24}
-                        style={{ marginTop: "10px" }}
-                      />
-                    )}
-                  </div>
-                </Grid>
-              )}
             </Grid>
           ),
           buttons: (
-            <Grid>
-              <Button
-                onClick={this.handleClickPreviousPw}
-                className={classes.button}
-                variant="outlined"
-                color="primary"
-                size="small"
-                style={{ marginRight: "5px" }}
-              >
-                Back
-              </Button>
-              <Button
-                onClick={this.handleClickNext}
-                className={classes.button}
-                variant="outlined"
-                color="primary"
-                size="small"
-                disabled={nextDisabled} //should be changed to createSuccess
-              >
-                Next
-              </Button>
+            <Grid container direction="row" justify="flex-start" spacing={0}>
+              <Grid item xs={6}>
+                <Button
+                  onClick={() =>
+                    this.onSubmitOnboardOrCreate(
+                      this.state.pin,
+                      this.state.pin2
+                    )
+                  }
+                  className={classes.button}
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  disabled={isCreating}
+                >
+                  Create PIN
+                </Button>
+                {isCreating && (
+                  <CircularProgress size={24} style={{ marginTop: "10px" }} />
+                )}
+              </Grid>
+
+              <Grid item xs={6}>
+                <Grid container justify="flex-end" spacing={0}>
+                  <Button
+                    onClick={this.handleClickPreviousPw}
+                    className={classes.button}
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    style={{ marginRight: "5px" }}
+                  >
+                    Back
+                  </Button>
+
+                  <Button
+                    onClick={this.handleClickNext}
+                    className={classes.button}
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    disabled={nextDisabled} //should be changed to createSuccess
+                  >
+                    Next
+                  </Button>
+                </Grid>
+              </Grid>
             </Grid>
           )
         },
@@ -349,14 +332,13 @@ class SetupCard extends Component {
           title: "Your Recovery Phrase",
           message: `This recovery phrase will allow you to recover your Card elsewhere. Be sure to write it down before you deposit money.`,
           extra: (
-            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
+            <Grid item xs style={{ padding: "2% 2% 2% 2%" }}>
               <CopyToClipboard text={mnemonic} color="primary">
                 <Button
-                  fullWidth
                   className={classes.button}
                   variant="outlined"
                   color="primary"
-                  size="small"
+                  size="large"
                 >
                   <CopyIcon style={{ marginRight: "5px" }} />
                   <Typography noWrap={false} variant="body1" color="primary">
@@ -373,7 +355,7 @@ class SetupCard extends Component {
             </Grid>
           ),
           buttons: (
-            <Grid>
+            <Grid container justify="flex-end" spacing={0}>
               <Button
                 onClick={this.handleClickPreviousPw}
                 className={classes.button}
@@ -384,6 +366,7 @@ class SetupCard extends Component {
               >
                 Back
               </Button>
+
               <Button
                 onClick={this.handleClickNext}
                 className={classes.button}
@@ -399,59 +382,59 @@ class SetupCard extends Component {
         },
         {
           title: "Adding funds - ETH",
-          message: (
+          message: `To get started, send some eth to this address:`,
+          extra: (
             <div>
-              <p>To get started, send some funds to the address above!</p>
-              <p>
-                <span style={{ fontWeight: "bold" }}>
-                  Minimum deposit (covers gas costs):
+              <Grid item xs>
+                <CopyToClipboard
+                  text={localStorage.getItem("delegateSigner")}
+                  color="primary"
+                >
+                  <Button
+                    fullWidth
+                    className={classes.button}
+                    variant="outlined"
+                    color="primary"
+                  >
+                    <CopyIcon style={{ marginRight: "5px" }} />
+                    <Typography noWrap variant="body1" color="primary">
+                      <Tooltip
+                        disableFocusListener
+                        disableTouchListener
+                        title="Click to Copy"
+                      >
+                        <span>{localStorage.getItem("delegateSigner")}</span>
+                      </Tooltip>
+                    </Typography>
+                  </Button>
+                </CopyToClipboard>
+              </Grid>
+
+              <Grid item xs style={{ paddingTop: "5%" }}>
+                <Typography variant="body1">
+                  <span style={{ fontWeight: "bold" }}>
+                    Minimum deposit (covers gas costs):
+                    <br />
+                  </span>{" "}
+                  {minEth || "?.??"} ETH ({minDai || "?.??"})<br />
+                  <span style={{ fontWeight: "bold" }}>
+                    Maximum deposit (for your protection):
+                    <br />
+                  </span>{" "}
+                  {maxEth || "?.??"} ETH ({maxDai || "?.??"})
                   <br />
-                </span>{" "}
-                {minEth || "?.??"} ETH ({minDai || "?.??"})<br />
-                <span style={{ fontWeight: "bold" }}>
-                  Maximum deposit (for your protection):
                   <br />
-                </span>{" "}
-                {maxEth || "?.??"} ETH ({maxDai || "?.??"})
-              </p>
-              <p>
-                Don't have any ETH or need a refresher on how to send it?{" "}
-                <a href="https://www.coinbase.com/">Coinbase</a> is a good place
-                to get started.{" "}
-              </p>
+                  Don't have any ETH or need a refresher on how to send it?{" "}
+                  <a href="https://www.coinbase.com/">Coinbase</a> is a good
+                  place to get started.{" "}
+                </Typography>
+              </Grid>
             </div>
           ),
-          extra: (
-            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-              <CopyToClipboard
-                text={localStorage.getItem("delegateSigner")}
-                color="primary"
-              >
-                <Button
-                  fullWidth
-                  className={classes.button}
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                >
-                  <CopyIcon style={{ marginRight: "5px" }} />
-                  <Typography noWrap variant="body1" color="primary">
-                    <Tooltip
-                      disableFocusListener
-                      disableTouchListener
-                      title="Click to Copy"
-                    >
-                      <span>{localStorage.getItem("delegateSigner")}</span>
-                    </Tooltip>
-                  </Typography>
-                </Button>
-              </CopyToClipboard>
-            </Grid>
-          ),
           buttons: (
-            <Grid>
+            <Grid container justify="flex-end" spacing={0}>
               <Button
-                onClick={this.handleClickPrevious}
+                onClick={this.handleClickPreviousPw}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
@@ -460,6 +443,7 @@ class SetupCard extends Component {
               >
                 Back
               </Button>
+
               <Button
                 onClick={this.handleClickNext}
                 className={classes.button}
@@ -475,39 +459,48 @@ class SetupCard extends Component {
         },
         {
           title: "Adding Funds - DAI",
-          message: `If you'd like to deposit DAI directly, there are no deposit maximums. However, make sure to also send at least ${minEth ||
-            "?.??"} ETH (${minDai || "?.??"}) for gas.`,
           extra: (
-            <Grid container style={{ padding: "2% 2% 2% 2%" }}>
-              <CopyToClipboard
-                text={localStorage.getItem("delegateSigner")}
-                color="primary"
-              >
-                <Button
-                  fullWidth
-                  className={classes.button}
-                  variant="outlined"
+            <div>
+              <Grid item xs>
+                <CopyToClipboard
+                  text={localStorage.getItem("delegateSigner")}
                   color="primary"
-                  size="small"
                 >
-                  <CopyIcon style={{ marginRight: "5px" }} />
-                  <Typography noWrap variant="body1" color="primary">
-                    <Tooltip
-                      disableFocusListener
-                      disableTouchListener
-                      title="Click to Copy"
-                    >
-                      <span>{localStorage.getItem("delegateSigner")}</span>
-                    </Tooltip>
-                  </Typography>
-                </Button>
-              </CopyToClipboard>
-            </Grid>
+                  <Button
+                    fullWidth
+                    className={classes.button}
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                  >
+                    <CopyIcon style={{ marginRight: "5px" }} />
+                    <Typography noWrap variant="body1" color="primary">
+                      <Tooltip
+                        disableFocusListener
+                        disableTouchListener
+                        title="Click to Copy"
+                      >
+                        <span>{localStorage.getItem("delegateSigner")}</span>
+                      </Tooltip>
+                    </Typography>
+                  </Button>
+                </CopyToClipboard>
+              </Grid>
+
+              <Grid item xs style={{ paddingTop: "5%" }}>
+                <Typography variant="body1">
+                  <span>
+                    {`${`If you'd like to deposit DAI directly, there are no deposit maximums. However, make sure to also send at least ${minEth ||
+                      "?.??"} ETH (${minDai || "?.??"}) for gas.`}`}
+                  </span>
+                </Typography>
+              </Grid>
+            </div>
           ),
           buttons: (
-            <Grid>
+            <Grid container justify="flex-end" spacing={0}>
               <Button
-                onClick={this.handleClickPrevious}
+                onClick={this.handleClickPreviousPw}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
@@ -516,8 +509,9 @@ class SetupCard extends Component {
               >
                 Back
               </Button>
+
               <Button
-                onClick={this.handleClose}
+                onClick={this.handleClickNext}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
@@ -535,10 +529,10 @@ class SetupCard extends Component {
       const screens = [
         {
           title: "Welcome!",
-          message2: `Please enter your PIN`,
+          message: `Please enter your PIN`,
           extra: (
-            <Grid wrap container style={{ padding: "2% 2% 2% 2%" }}>
-              <Grid style={{ paddingLeft: "2%", width: "100%" }}>
+            <Grid container justify="center" direction="column">
+              <Grid item xs={12}>
                 <ReactCodeInput
                   type="number"
                   isValid={!this.state.returningPasswordError}
@@ -546,26 +540,44 @@ class SetupCard extends Component {
                   onChange={val => this.handlePinFill(val)}
                 />
               </Grid>
-              <Grid style={{ width: "100%", marginBottom: "5%" }}>
-                {this.state.returningPasswordError ? (
-                  <span
+
+              <Grid item xs={12}>
+                {this.state.returningPasswordError && this.state.returningPasswordErrorText == "Field Required" && (
+                  <Typography
+                    variant="body2"
                     style={{
-                      paddingLeft: "3%",
                       color: "red",
                       fontSize: "20px"
                     }}
                   >
                     {this.state.returningPasswordErrorText}
-                  </span>
-                ) : null}
+                  </Typography>
+                )}
+
+                {this.state.returningPasswordError && this.state.returningPasswordErrorText != "Field Required" && (
+                  <Typography
+                    variant="body2"
+                    style={{
+                      right: "0",
+                      position: "absolute",
+                      color: "red",
+                      fontSize: "20px"
+                    }}
+                  >
+                    {this.state.returningPasswordErrorText}
+                  </Typography>
+                )}
               </Grid>
+            </Grid>
+          ),
+          buttons: (
+            <Grid container justify="flex-end" spacing={0}>
               <Button
-                fullWidth
                 onClick={() => this.onSubmitInputPin(this.state.pin)}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
-                size="large"
+                size="small"
               >
                 Submit
               </Button>
@@ -586,6 +598,7 @@ class SetupCard extends Component {
       this.setState({ pin: val }, () => console.log(this.state.pin));
     }
   };
+
   handlePin2Fill = val => {
     if (val.length === 6) {
       this.setState({ pin2: val }, () => console.log(this.state.pin2));
@@ -596,6 +609,7 @@ class SetupCard extends Component {
     const mnemonic = generateMnemonic();
     return mnemonic;
   };
+
   handleDecryptMnemonic = () => {
     const encrypted = localStorage.getItem("encryptedMnemonic");
     if (encrypted && this.state.pin) {
@@ -624,6 +638,7 @@ class SetupCard extends Component {
     }
     this.setState({ index: index - 1 });
   };
+
   handleClickPreviousPw = () => {
     const { index, nextDisabled } = this.state;
     if (nextDisabled) {
@@ -722,61 +737,45 @@ class SetupCard extends Component {
     return (
       <Grid
         container
-        spacing={16}
+        spacing={24}
         direction="column"
         style={{
-          paddingLeft: "10%",
-          paddingRight: "10%",
-          paddingTop: "10%",
-          paddingBottom: "10%",
+          padding: "10% 10% 10% 10%",
           textAlign: "center"
         }}
         zeroMinWidth={true}
       >
         {display.length !== 0 && (
           <Dialog open={open} fullWidth>
-            <Grid container justify="center">
-              <Grid item xs={12} style={{ padding: "2% 2% 2% 2%" }}>
-                <LinearProgress variant="determinate" value={progress} />
-              </Grid>
-              <Grid item xs={12}>
-                <DialogTitle variant="h5">{display[index].title}</DialogTitle>
-              </Grid>
-              <DialogContent>
-                {display[index].message2 ? (
-                  <DialogContentText variant="body1">
-                    {display[index].message2}
-                  </DialogContentText>
-                ) : null}
-              </DialogContent>
+            <Grid item xs={12}>
+              <LinearProgress variant="determinate" value={progress} />
+            </Grid>
 
-              {display[index].extra && (
-                <Grid item xs={12} style={{ marginTop: "-4%" }}>
-                  {display[index].extra}
-                </Grid>
-              )}
+            <DialogTitle variant="h5">{display[index].title}</DialogTitle>
 
-              <DialogContent>
-                <Grid item xs={12} style={{ padding: "2% 2% 10% 2%" }}>
+            <DialogContent style={{ textAlign: "center" }}>
+              {display[index].message &&
+                typeof display[index].message == "string" && (
                   <DialogContentText variant="body1">
                     {display[index].message}
                   </DialogContentText>
-                </Grid>
-              </DialogContent>
-              {display[index].buttons && (
-                <Grid
-                  item
-                  xs={12}
-                  style={{
-                    position: "absolute",
-                    right: "20px",
-                    bottom: "20px"
-                  }}
-                >
-                  {display[index].buttons}
-                </Grid>
+                )}
+
+              {display[index].message &&
+                typeof display[index].message != "string" && (
+                  <div>{display[index].message}</div>
+                )}
+            </DialogContent>
+
+            <DialogContent style={{ textAlign: "center" }}>
+              {display[index].extra && (
+                <div>{display[index].extra}</div>
               )}
-            </Grid>
+            </DialogContent>
+
+            <DialogContent>
+              {display[index].buttons && <div>{display[index].buttons}</div>}
+            </DialogContent>
           </Dialog>
         )}
       </Grid>
