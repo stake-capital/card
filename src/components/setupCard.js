@@ -617,11 +617,9 @@ class SetupCard extends Component {
   };
 
   handleDecryptMnemonic = () => {
-    console.log(this.state.pin)
     const encrypted = localStorage.getItem("encryptedMnemonic");
     if (encrypted && this.state.pin) {
       var secret = this.state.pin;
-      console.log(secret)
       try{
         const mnemonic = decryptMnemonic(encrypted, secret);
         return mnemonic;
