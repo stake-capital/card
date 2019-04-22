@@ -81,7 +81,7 @@ class SetupCard extends Component {
       returningPasswordError: false,
       onboardingPasswordErrorText: null,
       onboardingPasswordError: false,
-      pinOkay:false
+      pinOkay: false
     };
   }
 
@@ -94,14 +94,15 @@ class SetupCard extends Component {
       );
       if (valid) {
         await this.props.walletGen(pin);
-        this.setState({pinOkay:true})
+        this.setState({ pinOkay: true })
         this.handleClose();
       }
     } catch (e) {
       console.log(`walletGen error ${e}`);
       this.setState({
         returningPasswordError: true,
-        returningPasswordErrorText: `PIN incorrect. If you're entering the correct PIN and this error persists, please reach out to support: https://discord.gg/A2DPmgn`
+        returningPasswordErrorText: `PIN incorrect. If you're entering the correct PIN and this error persists, please reach out to support: https://discord.gg/A2DPmgn`,
+        pinOkay: false
       });
     }
   }
@@ -519,7 +520,7 @@ class SetupCard extends Component {
               </Button>
 
               <Button
-                onClick={this.handleClickNext}
+                onClick={this.handleClose}
                 className={classes.button}
                 variant="outlined"
                 color="primary"
@@ -733,9 +734,9 @@ class SetupCard extends Component {
 
     // const mnemonic = this.handleGenerateMnemonic();
     let mnemonic;
-    if(pinOkay){
+    if (pinOkay) {
        mnemonic = this.handleDecryptMnemonic() || "{}";
-    }else{
+    } else {
       mnemonic = "No pin"
     }
 
