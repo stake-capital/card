@@ -17,6 +17,7 @@ import CashOutCard from "./components/cashOutCard";
 import SupportCard from "./components/supportCard";
 import RedeemCard from "./components/redeemCard";
 import SetupCard from "./components/setupCard";
+import Money2020Confirmation from "./components/Money2020Confirmation";
 import Confirmations from "./components/Confirmations";
 import MySnackbar from "./components/snackBar";
 
@@ -550,6 +551,13 @@ class App extends React.Component {
                   connext={connext}
                   connextState={connextState}
                   runtime={runtime}
+                />
+              )}
+            />
+            <Route
+              path="/money2020confirmation"
+              render={props => (
+                <Money2020Confirmation {...props}
                 />
               )}
             />

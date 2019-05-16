@@ -7,7 +7,7 @@ import SendIcon from "@material-ui/icons/Send";
 import ReceiveIcon from "@material-ui/icons/SaveAlt";
 import Modal from "@material-ui/core/Modal";
 import Button from "@material-ui/core/Button";
-import { Fab, Grid, withStyles } from "@material-ui/core";
+import { Fab, Grid, withStyles, Typography } from "@material-ui/core";
 import { Link } from "react-router-dom";
 
 const styles = {};
@@ -176,6 +176,36 @@ class Home extends React.Component {
               Cash Out
             </Button>
           </Grid>
+          <Grid container xs={12} justify="center" alignItems="center" style={{textAlign:"center"}}>
+                <Typography item variant="body1" style={{width:"90%"}}>
+                Meet us at the MakerDAO booth M31 (Hall 2) for more information on Dai or technical support.
+                  </Typography>
+              </Grid>
+        <Grid container nowrap justify="center" style={{ textAlign: "center", paddingTop: "5%"}}>
+            <Typography
+              variant="body1">
+              Read more about: &nbsp;
+              </Typography>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://connext.network"
+              >
+                            <Typography
+              variant="body1"
+            >Connext</Typography>
+              </a>
+              &nbsp; &nbsp; &nbsp;
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href="https://makerdao.com"
+              >
+                 <Typography
+              variant="body1"
+            >DAI</Typography>
+              </a>
+            </Grid>
         </Grid>
       </>
     );
