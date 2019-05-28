@@ -4,6 +4,7 @@ import ChannelCard from "./channelCard";
 import QRScan from "./qrScan";
 import QRIcon from "mdi-material-ui/QrcodeScan";
 import SendIcon from "@material-ui/icons/Send";
+import RemoveRedEye from "@material-ui/icons/RemoveRedEye";
 import ReceiveIcon from "@material-ui/icons/SaveAlt";
 import Modal from "@material-ui/core/Modal";
 import Button from "@material-ui/core/Button";
@@ -122,6 +123,22 @@ class Home extends React.Component {
           style={{ paddingLeft: "2%", paddingRight: "2%", textAlign: "center" }}
         >
           <Grid item xs={12} style={{ paddingTop: "10%" }}>
+            <Button
+              fullWidth
+              style={{
+                color: "#FFF",
+                backgroundColor: "#FCA311"
+              }}
+              size="large"
+              variant="contained"
+              component={Link}
+              to="/viewstream"
+            >
+              {"View Stream"}
+              <RemoveRedEye style={{ marginLeft: "5px" }} />
+            </Button>
+          </Grid>
+          <Grid item xs={12}>
             <Grid
               container
               spacing={8}

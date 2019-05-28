@@ -678,7 +678,7 @@ class PayCard extends Component {
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">
-            <span>{"Linked payments are capped at $10."}</span>
+            <span>{"Linked payments are capped at $10.testing"}</span>
           </Typography>
         </Grid>
         <Grid item xs={12}>

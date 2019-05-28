@@ -13,6 +13,7 @@ import AppBarComponent from "./components/AppBar";
 import SettingsCard from "./components/settingsCard";
 import ReceiveCard from "./components/receiveCard";
 import SendCard from "./components/sendCard";
+import StreamViewer from "./components/streamViewer";
 import CashOutCard from "./components/cashOutCard";
 import SupportCard from "./components/supportCard";
 import RedeemCard from "./components/redeemCard";
@@ -522,6 +523,21 @@ class App extends React.Component {
               path="/send"
               render={props => (
                 <SendCard
+                  {...props}
+                  web3={ethprovider}
+                  connext={connext}
+                  address={address}
+                  channelState={channelState}
+                  publicUrl={publicUrl}
+                  scanArgs={sendScanArgs}
+                  connextState={connextState}
+                />
+              )}
+            />
+            <Route
+              path="/viewstream"
+              render={props => (
+                <StreamViewer
                   {...props}
                   web3={ethprovider}
                   connext={connext}
