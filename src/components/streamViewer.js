@@ -18,6 +18,7 @@ import {
 import interval from "interval-promise";
 import Web3 from "web3";
 import { Link } from "react-router-dom";
+import MySnackbar from "./snackBar";
 import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
 
 const Big = (n) => eth.utils.bigNumberify(n.toString())
@@ -275,7 +276,6 @@ class PayCard extends Component {
 
   async componentDidMount() {
     const { location } = this.props;
-    const { streamViewingEnabled } = this.state;
 
     const query = queryString.parse(location.search);
     if (query.amountToken) {
@@ -295,12 +295,30 @@ class PayCard extends Component {
     }
 
     // Setup interval for continually billing the user while watching the stream
-    setInterval(() => {
-      // Only bill the user if they are currently viewing the stream
-      if (streamViewingEnabled) {
-        this.paymentHandler();
-      }
-    }, 10000);
+    setInterval(this.chargeTheUserForViewing, (1000 * 60));
+  }
+
+  chargeTheUserForViewing = async () => {
+    const { streamViewingEnabled } = this.state;
+
+    // Only bill the user if they are currently viewing the stream
+    if (streamViewingEnabled) {
+
+      // Set the price per minute
+      const pricePerMinute = "0.02";
+
+      // Set the amount to charge the user
+      await this.setState(oldState => {
+        oldState.paymentVal.payments[0].amountToken = Web3.utils.toWei(`${pricePerMinute}`, "ether");
+        return oldState;
+      });
+
+      // Set the address to send the money to on the hub
+      this.updateRecipientHandler("0x648831353f57bfea9a95b9f46b249121140c12ff");
+
+      // Execute the payment
+      this.paymentHandler();
+    }
   }
 
   async updatePaymentHandler(value) {
@@ -335,24 +353,24 @@ class PayCard extends Component {
     this.setState({ count })
   }
 
-  handleQRData = async scanResult => {
-    const { publicUrl } = this.props;
+  // handleQRData = async scanResult => {
+  //   const { publicUrl } = this.props;
 
-    let data = scanResult.split("/send?");
-    if (data[0] === publicUrl) {
-      let temp = data[1].split("&");
-      let amount = temp[0].split("=")[1];
-      let recipient = temp[1].split("=")[1];
-      this.updatePaymentHandler(amount);
-      this.updateRecipientHandler(recipient);
-    } else {
-      this.updateRecipientHandler(scanResult);
-      console.log("incorrect site");
-    }
-    this.setState({
-      scan: false
-    });
-  };
+  //   let data = scanResult.split("/send?");
+  //   if (data[0] === publicUrl) {
+  //     let temp = data[1].split("&");
+  //     let amount = temp[0].split("=")[1];
+  //     let recipient = temp[1].split("=")[1];
+  //     this.updatePaymentHandler(amount);
+  //     this.updateRecipientHandler(recipient);
+  //   } else {
+  //     this.updateRecipientHandler(scanResult);
+  //     console.log("incorrect site");
+  //   }
+  //   this.setState({
+  //     scan: false
+  //   });
+  // };
 
   async updateRecipientHandler(value) {
     this.setState(async oldState => {
@@ -704,7 +722,7 @@ class PayCard extends Component {
         >
           <Grid item xs={12}>
             {(streamViewingEnabled && parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
-              <iframe title="stream" className={classes.streamIframe} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowfullscreen></iframe>
+              <iframe title="stream" className={classes.streamIframe} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowFullScreen></iframe>
             }
             {((!streamViewingEnabled) && parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
               <div className={classes.streamBlocker}>
@@ -957,8 +975,9 @@ class PayCard extends Component {
             Back
           </Button>
         </Grid>
+        {/* We only show the PaymentConfirmationDialog if there was some kind of issue / error processing the payment. */}
         <PaymentConfirmationDialog
-          showReceipt={showReceipt}
+          showReceipt={showReceipt && (paymentState !== PaymentStates.Success)}
           sendError={sendError}
           amountToken={
             paymentVal.payments[0].amountToken
@@ -971,6 +990,14 @@ class PayCard extends Component {
           history={this.props.history}
           closeModal={this.closeModal}
           paymentState={paymentState}
+        />
+        {/* We show the MySnackbar component if the payment was successful. */}
+        <MySnackbar
+          variant="success"
+          openWhen={showReceipt && (paymentState === PaymentStates.Success)}
+          onClose={() => this.closeModal()}
+          message="Successfully paid $0.02 for another minute of viewing! 👀"
+          duration={5000}
         />
       </Grid>
     );
