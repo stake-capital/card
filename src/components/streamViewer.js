@@ -760,12 +760,19 @@ class PayCard extends Component {
             }}
             size="large"
             variant="contained"
-            to={(parseInt(getOwedBalanceInDAI(connextState)) <= 0) ? "/deposit" : null}
-            component={(parseInt(getOwedBalanceInDAI(connextState)) <= 0) ? Link : null}
             onClick={() => 
               // Only enable viewing of the stream if the user has a non-zero balance.
               (parseInt(getOwedBalanceInDAI(connextState)) > 0) && this.setState({ streamViewingEnabled: !streamViewingEnabled })
             }
+            {...( // We only want the button to function as a link to the /deposit page if the DAI balance is currently empty.
+              (parseInt(getOwedBalanceInDAI(connextState)) <= 0) ?
+                {
+                  to: "/deposit",
+                  component: Link
+                }
+              :
+                {}
+            )}
           >
             {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
               "Deposit DAI to View Stream"
