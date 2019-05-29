@@ -1,16 +1,8 @@
 import * as Connext from 'connext';
 import React, { Component } from "react";
 import Button from "@material-ui/core/Button";
-import SendIcon from "@material-ui/icons/Send";
 import RemoveRedEye from "@material-ui/icons/RemoveRedEye";
-import TextField from "@material-ui/core/TextField";
-import QRIcon from "mdi-material-ui/QrcodeScan";
-import LinkIcon from "@material-ui/icons/Link";
-import InputAdornment from "@material-ui/core/InputAdornment";
-import Tooltip from "@material-ui/core/Tooltip";
-import Modal from "@material-ui/core/Modal";
 import * as eth from 'ethers';
-import QRScan from "./qrScan";
 import {
   withStyles,
   Grid,
@@ -46,7 +38,7 @@ const styles = theme => ({
   button: {
     backgroundColor: "#FCA311",
     color: "#FFF"
-  }
+  },
 });
 
 const PaymentStates = {
@@ -248,6 +240,8 @@ class PayCard extends Component {
 
   async componentDidMount() {
     const { location } = this.props;
+    const { streamViewingEnabled } = this.state;
+
     const query = queryString.parse(location.search);
     if (query.amountToken) {
       await this.setState(oldState => {
@@ -264,6 +258,14 @@ class PayCard extends Component {
         return oldState;
       });
     }
+
+    // Setup interval for continually billing the user while watching the stream
+    setInterval(() => {
+      // Only bill the user if they are currently viewing the stream
+      if (streamViewingEnabled) {
+        this.paymentHandler();
+      }
+    }, 10000);
   }
 
   async updatePaymentHandler(value) {
@@ -641,8 +643,8 @@ class PayCard extends Component {
   };
 
   render() {
-    const { classes, connextState } = this.props;
-    const { paymentState, paymentVal, displayVal, balanceError, addressError, scan, showReceipt, sendError, streamViewingEnabled } = this.state;
+    const { connextState } = this.props;
+    const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled } = this.state;
     return (
       <Grid
         container
@@ -669,19 +671,20 @@ class PayCard extends Component {
             {(streamViewingEnabled && parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
               <iframe title="stream" style={{width: "calc(100vw - 24px)", height: "calc(46vw - 13.5px)", maxWidth: "442px", maxHeight: "248.6px"}} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowfullscreen></iframe>
             }
-            {((!streamViewingEnabled) || parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+            {((!streamViewingEnabled) && parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
               <div style={{width: "calc(100vw - 24px)", height: "calc(46vw - 13.5px)", maxWidth: "442px", maxHeight: "248.6px", backgroundColor: "#CCCC", textAlign: "center"}}>
                 <div style={{height: "calc(23vw - 6.75px - 13px)", maxHeight: "calc(124.3px - 13px)"}} />
-                {(!streamViewingEnabled) &&
-                  <div>
-                    You must enable the stream below to start watching. <span role="img" aria-label="">🙈</span>
-                  </div>
-                }
-                {streamViewingEnabled &&
-                  <div>
-                    You have run out of viewing time. <span role="img" aria-label="">😲</span>
-                  </div>
-                }
+                <div>
+                  You must enable the stream below to start watching. <span role="img" aria-label="">🙈</span>
+                </div>
+              </div>
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+              <div style={{width: "calc(100vw - 24px)", height: "calc(46vw - 13.5px)", maxWidth: "442px", maxHeight: "248.6px", backgroundColor: "#CCCC", textAlign: "center"}}>
+                <div style={{height: "calc(23vw - 6.75px - 13px)", maxHeight: "calc(124.3px - 13px)"}} />
+                <div>
+                  Your balance is empty! <span role="img" aria-label="">😲</span> Send DAI to your address (above) to begin viewing.
+                </div>
               </div>
             }
           </Grid>
@@ -709,17 +712,24 @@ class PayCard extends Component {
             }}
             size="large"
             variant="contained"
-            onClick={() => this.setState({ streamViewingEnabled: !streamViewingEnabled })}
+            onClick={() => 
+              // Only enable viewing of the stream if the user has a non-zero balance.
+              (parseInt(getOwedBalanceInDAI(connextState)) > 0) && this.setState({ streamViewingEnabled: !streamViewingEnabled })
+            }
           >
-            {(!streamViewingEnabled) &&
+            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+              "Add DAI to View Stream"
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) && (!streamViewingEnabled) &&
               "Start Stream"
             }
-            {streamViewingEnabled &&
+            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) && streamViewingEnabled &&
               "Stop Stream"
             }
             <RemoveRedEye style={{ marginLeft: "5px" }} />
           </Button>
         </Grid>
+        {/*
         <Grid item xs={12}>
           <TextField
             fullWidth
@@ -798,7 +808,7 @@ class PayCard extends Component {
             history={this.props.history}
           />
         </Modal>
-        {/* TODO: remove modal */}
+        {/* TODO: remove modal *//*}
         <Dialog
           id="multipleLinks"
           open={this.state.multipleLinks}
@@ -869,6 +879,7 @@ class PayCard extends Component {
             </Grid>
           </Grid>
         </Grid>
+        */}
         <Grid item xs={12}>
           <Button
             variant="outlined"
