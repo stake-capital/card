@@ -664,7 +664,17 @@ class PayCard extends Component {
           alignItems="center"
         >
           <Grid item xs={12}>
-            <SendIcon className={classes.icon} />
+            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
+              <iframe title="stream" style={{width: "calc(100vw - 24px)", height: "calc(46vw - 13.5px)", maxWidth: "442px", maxHeight: "248.6px"}} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowfullscreen></iframe>
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+              <div style={{width: "calc(100vw - 24px)", height: "calc(46vw - 13.5px)", maxWidth: "442px", maxHeight: "248.6px", backgroundColor: "#CCCC", textAlign: "center"}}>
+                <div style={{height: "calc(23vw - 6.75px - 13px)", maxHeight: "calc(124.3px - 13px)"}} />
+                <div>
+                  You have run out of viewing time. <span role="img" aria-label="">😲</span>
+                </div>
+              </div>
+            }
           </Grid>
         </Grid>
         <Grid item xs={12}>
@@ -678,7 +688,7 @@ class PayCard extends Component {
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">
-            <span>{"Linked payments are capped at $10.testing"}</span>
+            <span>{"Viewing this stream costs $0.02 per minute."}</span>
           </Typography>
         </Grid>
         <Grid item xs={12}>

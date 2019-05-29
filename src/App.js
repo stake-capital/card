@@ -52,7 +52,7 @@ const styles = theme => ({
     padding: `0px ${theme.spacing.unit}px 0 ${theme.spacing.unit}px`,
     [theme.breakpoints.up("sm")]: {
       width: "450px",
-      height: "650px",
+      // height: "650px",
       marginTop: "5%",
       borderRadius: "4px"
     },
