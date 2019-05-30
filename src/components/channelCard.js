@@ -20,7 +20,7 @@ class ChannelCard extends Component {
   render() {
     const { classes, connextState } = this.props;
     // only displays token value by default
-    const balance = getOwedBalanceInDAI(connextState)
+    const balance = getOwedBalanceInDAI(connextState, false)
     const whole = balance.substring(0, balance.indexOf('.'))
     const part = balance.substring(balance.indexOf('.'))
     return (

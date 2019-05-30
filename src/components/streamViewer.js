@@ -721,20 +721,20 @@ class PayCard extends Component {
           alignItems="center"
         >
           <Grid item xs={12}>
-            {(streamViewingEnabled && parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
+            {(streamViewingEnabled && parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
               <iframe title="stream" className={classes.streamIframe} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowFullScreen></iframe>
             }
-            {((!streamViewingEnabled) && parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
+            {((!streamViewingEnabled) && parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
               <div className={classes.streamBlocker}>
                 <div className={classes.streamBlockerTextSpacer} />
                 <div className={classes.streamBlockerText}>
                   <div className={classes.streamBlockerTextInner}>
-                    You must enable the stream below to start watching. <span role="img" aria-label="">🙈</span>
+                    You must enable the stream below to watch. <span role="img" aria-label="">🙈</span>
                   </div>
                 </div>
               </div>
             }
-            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
               <div className={classes.streamBlocker}>
                 <div className={classes.streamBlockerTextSpacer} />
                 <div className={classes.streamBlockerText}>
@@ -750,19 +750,19 @@ class PayCard extends Component {
           <Grid container direction="row" justify="center" alignItems="center">
             <Typography variant="h2">
               <span>
-                {getOwedBalanceInDAI(connextState)}
+                {getOwedBalanceInDAI(connextState, false)}
               </span>
             </Typography>
           </Grid>
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">
-            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
               <span>
                 Please click the button below to deposit DAI for viewing the stream.
               </span>
             }
-            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
               <span>
                 Viewing the stream (by clicking "Start Stream" below) will cost $0.02 per minute.
               </span>
@@ -780,10 +780,10 @@ class PayCard extends Component {
             variant="contained"
             onClick={() => 
               // Only enable viewing of the stream if the user has a non-zero balance.
-              (parseInt(getOwedBalanceInDAI(connextState)) > 0) && this.setState({ streamViewingEnabled: !streamViewingEnabled })
+              (parseInt(getOwedBalanceInDAI(connextState, false)) > 0) && this.setState({ streamViewingEnabled: !streamViewingEnabled })
             }
             {...( // We only want the button to function as a link to the /deposit page if the DAI balance is currently empty.
-              (parseInt(getOwedBalanceInDAI(connextState)) <= 0) ?
+              (parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) ?
                 {
                   to: "/deposit",
                   component: Link
@@ -792,19 +792,19 @@ class PayCard extends Component {
                 {}
             )}
           >
-            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
               "Deposit DAI to View Stream"
             }
-            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) && (!streamViewingEnabled) &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) && (!streamViewingEnabled) &&
               "Start Stream"
             }
-            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) && streamViewingEnabled &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) && streamViewingEnabled &&
               "Stop Stream"
             }
-            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
               <RemoveRedEye style={{ marginLeft: "5px" }} />
             }
-            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
               <Block style={{ marginLeft: "5px" }} />
             }
           </Button>
