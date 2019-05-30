@@ -671,7 +671,7 @@ class PayCard extends Component {
           <Grid container direction="row" justify="center" alignItems="center">
             <Typography variant="h2">
               <span>
-                {getOwedBalanceInDAI(connextState)}
+                {getOwedBalanceInDAI(connextState, false)}
               </span>
             </Typography>
           </Grid>

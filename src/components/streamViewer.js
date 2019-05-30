@@ -1,15 +1,9 @@
 import * as Connext from 'connext';
 import React, { Component } from "react";
 import Button from "@material-ui/core/Button";
-import SendIcon from "@material-ui/icons/Send";
-import TextField from "@material-ui/core/TextField";
-import QRIcon from "mdi-material-ui/QrcodeScan";
-import LinkIcon from "@material-ui/icons/Link";
-import InputAdornment from "@material-ui/core/InputAdornment";
-import Tooltip from "@material-ui/core/Tooltip";
-import Modal from "@material-ui/core/Modal";
+import RemoveRedEye from "@material-ui/icons/RemoveRedEye";
+import Block from "@material-ui/icons/Block";
 import * as eth from 'ethers';
-import QRScan from "./qrScan";
 import {
   withStyles,
   Grid,
@@ -23,28 +17,51 @@ import {
 } from "@material-ui/core";
 import interval from "interval-promise";
 import Web3 from "web3";
+import { Link } from "react-router-dom";
+import MySnackbar from "./snackBar";
 import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
 
 const Big = (n) => eth.utils.bigNumberify(n.toString())
 const convertPayment = Connext.convert.Payment
-const convertChannelState = Connext.convert.ChannelState
 const emptyAddress = eth.constants.AddressZero
-const queryString = require("query-string");
-// $10 capped linked payments
-const LINK_LIMIT = eth.utils.parseEther("10")
-const ADMIN_SECRET = process.env.REACT_APP_ADMIN_SECRET;
 
 const styles = theme => ({
-  icon: {
-    width: "40px",
-    height: "40px"
-  },
-  input: {
-    width: "100%"
-  },
   button: {
     backgroundColor: "#FCA311",
     color: "#FFF"
+  },
+  streamIframe: {
+    width: "calc(100vw - 24px)",
+    height: "calc(46vw - 13.5px)",
+    maxWidth: "442px",
+    maxHeight: "248.6px"
+  },
+  streamBlocker: {
+    width: "calc(100vw - 24px)",
+    height: "calc(46vw - 13.5px)",
+    maxWidth: "442px",
+    maxHeight: "248.6px",
+    backgroundColor: "#CCCC",
+    textAlign: "center",
+    position: "relative"
+  },
+  streamBlockerTextSpacer: {
+    height: "calc(23vw - 6.75px)",
+    maxHeight: "124.3px"
+  },
+  streamBlockerText: {
+    paddingLeft: "10%",
+    paddingRight: "10%",
+    display: "table",
+    position: "absolute",
+    top: "0",
+    left: "0",
+    height: "100%",
+    width: "80%"
+  },
+  streamBlockerTextInner: {
+    display: "table-cell",
+    verticalAlign: "middle"
   }
 });
 
@@ -216,6 +233,7 @@ class PayCard extends Component {
     super(props);
 
     this.state = {
+      streamViewingEnabled: false,
       paymentVal: {
         meta: {
           purchaseId: "payment"
@@ -223,12 +241,8 @@ class PayCard extends Component {
         },
         payments: [
           {
-            recipient: props.scanArgs.recipient
-              ? props.scanArgs.recipient
-              : "",
-            amountToken: props.scanArgs.amount
-              ? Web3.utils.toWei(props.scanArgs.amount)
-              : "0",
+            recipient: "",
+            amountToken: "0",
             amountWei: "0",
           }
         ]
@@ -236,31 +250,35 @@ class PayCard extends Component {
       addressError: null,
       balanceError: null,
       paymentState: PaymentStates.None,
-      scan: false,
-      displayVal: props.scanArgs.amount ? props.scanArgs.amount : "0",
-      showReceipt: false,
-      multipleLinks: false, // TODO: remove
-      count: null,
+      showReceipt: false
     };
   }
 
   async componentDidMount() {
-    const { location } = this.props;
-    const query = queryString.parse(location.search);
-    if (query.amountToken) {
+    // Setup interval for continually billing the user while watching the stream
+    setInterval(this.chargeTheUserForViewing, (1000 * 60));
+  }
+
+  chargeTheUserForViewing = async () => {
+    const { streamViewingEnabled } = this.state;
+
+    // Only bill the user if they are currently viewing the stream
+    if (streamViewingEnabled) {
+
+      // Set the price per minute
+      const pricePerMinute = "0.02";
+
+      // Set the amount to charge the user
       await this.setState(oldState => {
-        oldState.paymentVal.payments[0].amountToken = Web3.utils.toWei(
-          query.amountToken
-        );
-        oldState.displayVal = query.amountToken;
+        oldState.paymentVal.payments[0].amountToken = Web3.utils.toWei(`${pricePerMinute}`, "ether");
         return oldState;
       });
-    }
-    if (query.recipient) {
-      await this.setState(oldState => {
-        oldState.paymentVal.payments[0].recipient = query.recipient;
-        return oldState;
-      });
+
+      // Set the address to send the money to on the hub
+      this.updateRecipientHandler("0x648831353f57bfea9a95b9f46b249121140c12ff");
+
+      // Execute the payment
+      this.paymentHandler();
     }
   }
 
@@ -291,30 +309,6 @@ class PayCard extends Component {
     this.setState({ displayVal: value, });
   }
 
-  // TODO: remove
-  updateCount = (count) => {
-    this.setState({ count })
-  }
-
-  handleQRData = async scanResult => {
-    const { publicUrl } = this.props;
-
-    let data = scanResult.split("/send?");
-    if (data[0] === publicUrl) {
-      let temp = data[1].split("&");
-      let amount = temp[0].split("=")[1];
-      let recipient = temp[1].split("=")[1];
-      this.updatePaymentHandler(amount);
-      this.updateRecipientHandler(recipient);
-    } else {
-      this.updateRecipientHandler(scanResult);
-      console.log("incorrect site");
-    }
-    this.setState({
-      scan: false
-    });
-  };
-
   async updateRecipientHandler(value) {
     this.setState(async oldState => {
       oldState.paymentVal.payments[0].recipient = value;
@@ -344,70 +338,15 @@ class PayCard extends Component {
 
     // validate recipient is valid address OR the empty address
     // recipient address can be empty
-    const isLink = paymentVal.payments[0].type === "PT_LINK";
-    const isValidRecipient = Web3.utils.isAddress(address) &&
-      (isLink ? address === emptyAddress : address !== emptyAddress);
+    const isValidRecipient = Web3.utils.isAddress(address) && (address !== emptyAddress);
 
     if (!isValidRecipient) {
       addressError = address + " is an invalid address";
     }
 
-    // linked payments also have a maximum enforced
-    if (isLink && payment.amountToken.gt(LINK_LIMIT)) {
-      // balance error here takes lower precendence than preceding
-      // balance errors, only reset if undefined
-      balanceError = balanceError || "Linked payments are capped at $10.";
-    }
     this.setState({ balanceError, addressError });
 
     return { balanceError, addressError };
-  }
-
-  async linkHandler() {
-    const { connext } = this.props;
-    const { paymentVal } = this.state;
-
-    // TODO: remove!
-    const address = paymentVal.payments[0].recipient;
-    if (address && ADMIN_SECRET && address === ADMIN_SECRET) {
-      this.setState({ multipleLinks: true })
-      return
-    } else {
-      this.setState({ multipleLinks: false })
-    }
-
-    // generate secret, set type, and set
-    // recipient to empty address
-    const payment = {
-      ...paymentVal.payments[0],
-      type: "PT_LINK",
-      recipient: emptyAddress,
-      meta: {
-        secret: connext.generateSecret()
-      }
-    };
-
-    const updatedPaymentVal = {
-      ...paymentVal,
-      payments: [payment]
-    };
-
-    // unconditionally set state
-    this.setState({
-      paymentVal: updatedPaymentVal
-    });
-
-    // check for validity of input fields
-    const { balanceError, addressError } = this.validatePaymentInput(
-      updatedPaymentVal
-    );
-
-    if (addressError || balanceError) {
-      return;
-    }
-
-    // send payment
-    await this._sendPayment(updatedPaymentVal);
   }
 
   async paymentHandler() {
@@ -457,10 +396,6 @@ class PayCard extends Component {
 
   async collateralizeRecipient(paymentVal) {
     const { connext } = this.props;
-    // do not collateralize on pt link payments
-    if (paymentVal.payments[0].type === "PT_LINK") {
-      return;
-    }
 
     // collateralize otherwise
     this.setState({
@@ -509,76 +444,6 @@ class PayCard extends Component {
     return CollateralStates.Success;
   }
 
-  // TODO: remove from admin modal
-  // TODO: logging... lol
-  async generateMultipleLinks() {
-    const { channelState, connext } = this.props;
-    const { paymentVal, count } = this.state;
-    if (!paymentVal || !count) {
-      console.warn("Error finding count or paymentVal in state:", this.state)
-      return
-    }
-
-    if (!channelState || !connext) {
-      console.warn("Error finding channelState or connext in props:", this.props)
-      return
-    }
-    const channel = convertChannelState("bn", channelState)
-
-    // get only the amount from the payment
-    const amountToken = Big(paymentVal.payments[0].amountToken)
-    // if balance < count * amountToken, err
-    console.log('******* count', count)
-    console.log('******* amountToken', amountToken.toString())
-    console.log('******* balanceTokenUser', channel.balanceTokenUser.toString())
-    console.log('******* mul', Big(count).mul(amountToken).toString())
-    if (Big(count).mul(amountToken).gt(channel.balanceTokenUser)) {
-      console.error("Insufficient funds for count * amountToken purchase value")
-      return
-    }
-    // generate payments in loop for buy
-    // all payments will have unique secrets, but the same
-    // denominated value
-    let payments = []
-    let i = 0
-    while (i < count) {
-      payments.push({
-        recipient: emptyAddress,
-        amountToken: amountToken.toString(),
-        amountWei: "0",
-        type: "PT_LINK",
-        meta: { secret: connext.generateSecret() }
-      })
-      i++
-    }
-    const purchase = {
-      meta: { reason: `Multiple link generation by ${channelState.user}`},
-      payments,
-    }
-
-    // try to purchase
-    try {
-      const { purchaseId } = await connext.buy(purchase)
-      console.log('************************************')
-      console.log(`Successful creation of multiple linked payments! Prepare for logging......`)
-      console.log(`********* purchaseId: ${purchaseId}`)
-      console.log(`********* link overview:`)
-      console.log(`amountToken in wei on link:`, amountToken.toString())
-      console.log(`total links in purchase:`, purchase.payments.length)
-      console.log('************************************')
-      console.log('************************************')
-      console.log('Here are your secrets:')
-      console.log(payments.map(p => p.meta.secret).toString())
-      console.log('************************************')
-      console.log('************************************')
-      console.log('Here is the submitted purchase:')
-      console.log(JSON.stringify(purchase, null, 2))
-    } catch (e) {
-      console.error("Not successful at making linked payments, please try again, or bug Layne on discord :)")
-      return
-    }
-  }
-
   // returns a string if there was an error, null
   // if successful
   async _sendPayment(paymentVal, isCollateralizing = false) {
@@ -596,29 +461,14 @@ class PayCard extends Component {
     }
 
     // collateralizing is handled before calling this send payment fn
-    // by either payment or link handler
-    // you can call the appropriate type here
+    // by payment you can call the appropriate type here
     try {
       await connext.buy(paymentVal);
-      if (paymentVal.payments[0].type === "PT_LINK") {
-        // automatically route to redeem card
-        const secret = paymentVal.payments[0].meta.secret;
-        const amountToken = paymentVal.payments[0].amountToken;
-        this.props.history.push({
-          pathname: "/redeem",
-          // TODO: add wei
-          search: `?secret=${secret}&amountToken=${
-            Web3.utils.fromWei(amountToken, "ether")
-          }`,
-          state: { isConfirm: true, secret, amountToken }
-        });
-      } else {
-        // display receipts
-        this.setState({
-          showReceipt: true,
-          paymentState: PaymentStates.Success
-        });
-      }
+      // display receipts
+      this.setState({
+        showReceipt: true,
+        paymentState: PaymentStates.Success
+      });
       return null;
     } catch (e) {
       if (!isCollateralizing) {
@@ -639,8 +489,8 @@ class PayCard extends Component {
   };
 
   render() {
-    const { classes, connextState } = this.props;
-    const { paymentState, paymentVal, displayVal, balanceError, addressError, scan, showReceipt, sendError } = this.state;
+    const { connextState, classes } = this.props;
+    const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled } = this.state;
     return (
       <Grid
         container
@@ -664,14 +514,26 @@ class PayCard extends Component {
           alignItems="center"
         >
           <Grid item xs={12}>
-            {(parseInt(getOwedBalanceInDAI(connextState)) > 0) &&
-              <iframe title="stream" style={{width: "calc(100vw - 24px)", height: "calc(46vw - 13.5px)", maxWidth: "442px", maxHeight: "248.6px"}} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowfullscreen></iframe>
+            {(streamViewingEnabled && parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
+              <iframe title="stream" className={classes.streamIframe} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowFullScreen></iframe>
             }
-            {(parseInt(getOwedBalanceInDAI(connextState)) <= 0) &&
-              <div style={{width: "calc(100vw - 24px)", height: "calc(46vw - 13.5px)", maxWidth: "442px", maxHeight: "248.6px", backgroundColor: "#CCCC", textAlign: "center"}}>
-                <div style={{height: "calc(23vw - 6.75px - 13px)", maxHeight: "calc(124.3px - 13px)"}} />
-                <div>
-                  You have run out of viewing time. <span role="img" aria-label="">😲</span>
+            {((!streamViewingEnabled) && parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
+              <div className={classes.streamBlocker}>
+                <div className={classes.streamBlockerTextSpacer} />
+                <div className={classes.streamBlockerText}>
+                  <div className={classes.streamBlockerTextInner}>
+                    You must enable the stream below to watch. <span role="img" aria-label="">🙈</span>
+                  </div>
+                </div>
+              </div>
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
+              <div className={classes.streamBlocker}>
+                <div className={classes.streamBlockerTextSpacer} />
+                <div className={classes.streamBlockerText}>
+                  <div className={classes.streamBlockerTextInner}>
+                    Your balance is empty! <span role="img" aria-label="">😲</span>
+                  </div>
                 </div>
               </div>
             }
@@ -681,164 +543,64 @@ class PayCard extends Component {
           <Grid container direction="row" justify="center" alignItems="center">
             <Typography variant="h2">
               <span>
-                {getOwedBalanceInDAI(connextState)}
+                {getOwedBalanceInDAI(connextState, false)}
               </span>
             </Typography>
           </Grid>
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">
-            <span>{"Viewing this stream costs $0.02 per minute."}</span>
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
+              <span>
+                Please click the button below to deposit DAI for viewing the stream.
+              </span>
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
+              <span>
+                Viewing the stream (by clicking "Start Stream" below) will cost $0.02 per minute.
+              </span>
+            }
           </Typography>
         </Grid>
         <Grid item xs={12}>
-          <TextField
+          <Button
             fullWidth
-            id="outlined-number"
-            label="Amount"
-            value={displayVal}
-            type="number"
-            margin="normal"
-            variant="outlined"
-            onChange={evt => this.updatePaymentHandler(evt.target.value)}
-            error={balanceError !== null}
-            helperText={balanceError}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            style={{ width: "100%" }}
-            id="outlined"
-            label="Recipient Address"
-            type="string"
-            value={
-              paymentVal.payments[0].recipient === emptyAddress
-                ? ""
-                : paymentVal.payments[0].recipient
-            }
-            onChange={evt => this.updateRecipientHandler(evt.target.value)}
-            margin="normal"
-            variant="outlined"
-            helperText={
-              addressError
-                ? addressError
-                : "Optional for linked payments"
-            }
-            error={addressError !== null}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Tooltip
-                    disableFocusListener
-                    disableTouchListener
-                    title="Scan with QR code"
-                  >
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      style={{ color: "#FFF" }}
-                      onClick={() => this.setState({ scan: true })}
-                    >
-                      <QRIcon />
-                    </Button>
-                  </Tooltip>
-                </InputAdornment>
-              )
+            style={{
+              color: "#FFF",
+              backgroundColor: "#FCA311"
             }}
-          />
-        </Grid>
-        <Modal
-          id="qrscan"
-          open={scan}
-          onClose={() => this.setState({ scan: false })}
-          style={{
-            justifyContent: "center",
-            alignItems: "center",
-            textAlign: "center",
-            position: "absolute",
-            top: "10%",
-            width: "375px",
-            marginLeft: "auto",
-            marginRight: "auto",
-            left: "0",
-            right: "0"
-          }}
-        >
-          <QRScan
-            handleResult={this.handleQRData}
-            history={this.props.history}
-          />
-        </Modal>
-        {/* TODO: remove modal */}
-        <Dialog
-          id="multipleLinks"
-          open={this.state.multipleLinks}
-          onClose={() => this.setState({ multipleLinks: false })}
-        >
-          <DialogContent>
-            <TextField
-              id="outlined-number"
-              label="Number of Links"
-              value={this.state.count || 0}
-              type="number"
-              margin="normal"
-              variant="outlined"
-              onChange={evt => this.updateCount(evt.target.value)}
-            />
-            <TextField
-              id="outlined-number"
-              label="Amount Dai in Link"
-              value={displayVal}
-              type="number"
-              margin="normal"
-              variant="outlined"
-              onChange={evt => this.updatePaymentHandler(evt.target.value)}
-            />
-            <DialogActions>
-              <Button
-                className={classes.button}
-                variant="contained"
-                onClick={() => this.generateMultipleLinks()}
-              >
-                Send
-                <SendIcon style={{ marginLeft: "5px" }} />
-              </Button>
-            </DialogActions>
-          </DialogContent>
-        </Dialog>
-        <Grid item xs={12}>
-          <Grid
-            container
-            direction="row"
-            alignItems="center"
-            justify="center"
-            spacing={16}
+            size="large"
+            variant="contained"
+            onClick={() => 
+              // Only enable viewing of the stream if the user has a non-zero balance.
+              (parseInt(getOwedBalanceInDAI(connextState, false)) > 0) && this.setState({ streamViewingEnabled: !streamViewingEnabled })
+            }
+            {...( // We only want the button to function as a link to the /deposit page if the DAI balance is currently empty.
+              (parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) ?
+                {
+                  to: "/deposit",
+                  component: Link
+                }
+              :
+                {}
+            )}
           >
-            <Grid item xs={6}>
-              <Button
-                fullWidth
-                className={classes.button}
-                variant="contained"
-                size="large"
-                onClick={() => {this.linkHandler()}}
-              >
-                Link
-                <LinkIcon style={{ marginLeft: "5px" }} />
-              </Button>
-            </Grid>
-            <Grid item xs={6}>
-              <Button
-                fullWidth
-                className={classes.button}
-                variant="contained"
-                size="large"
-                onClick={() => {this.paymentHandler()}}
-              >
-                Send
-                <SendIcon style={{ marginLeft: "5px" }} />
-              </Button>
-            </Grid>
-          </Grid>
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
+              "Deposit DAI to View Stream"
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) && (!streamViewingEnabled) &&
+              "Start Stream"
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) && streamViewingEnabled &&
+              "Stop Stream"
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
+              <RemoveRedEye style={{ marginLeft: "5px" }} />
+            }
+            {(parseInt(getOwedBalanceInDAI(connextState, false)) <= 0) &&
+              <Block style={{ marginLeft: "5px" }} />
+            }
+          </Button>
         </Grid>
         <Grid item xs={12}>
           <Button
@@ -855,8 +617,9 @@ class PayCard extends Component {
             Back
           </Button>
         </Grid>
+        {/* We only show the PaymentConfirmationDialog if there was some kind of issue / error processing the payment. */}
         <PaymentConfirmationDialog
-          showReceipt={showReceipt}
+          showReceipt={showReceipt && (paymentState !== PaymentStates.Success)}
           sendError={sendError}
           amountToken={
             paymentVal.payments[0].amountToken
@@ -869,6 +632,14 @@ class PayCard extends Component {
           history={this.props.history}
           closeModal={this.closeModal}
           paymentState={paymentState}
+        />
+        {/* We show the MySnackbar component if the payment was successful. */}
+        <MySnackbar
+          variant="success"
+          openWhen={showReceipt && (paymentState === PaymentStates.Success)}
+          onClose={() => this.closeModal()}
+          message="Successfully paid $0.02 for another minute of viewing! 👀"
+          duration={5000}
         />
       </Grid>
     );
