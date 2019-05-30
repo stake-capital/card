@@ -1,3 +1,5 @@
+import * as Connext from "connext";
+import { ethers as eth } from "ethers";
 import React, { Component } from "react";
 import Button from "@material-ui/core/Button";
 import UnarchiveIcon from "@material-ui/icons/Unarchive";
@@ -10,12 +12,12 @@ import InputAdornment from "@material-ui/core/InputAdornment";
 import Modal from "@material-ui/core/Modal";
 import QRScan from "./qrScan";
 import { withStyles, Grid, Typography, CircularProgress } from "@material-ui/core";
-import { getChannelBalanceInUSD } from "../utils/currencyFormatting";
+import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
 import interval from "interval-promise";
-import * as Connext from "connext";
-import Web3 from "web3";
+import { hasPendingTransaction } from '../utils/hasOnchainTransaction'
 
 const { hasPendingOps } = new Connext.Utils();
+const Big = (n) => eth.utils.bigNumberify(n.toString())
 
 const styles = theme => ({
   icon: {
@@ -44,10 +46,10 @@ class CashOutCard extends Component {
 
     this.state = {
       withdrawalVal: {
-        withdrawalWeiUser: "0",
-        tokensToSell: "0",
-        withdrawalTokenUser: "0",
-        weiToSell: "0",
+        // withdrawalWeiUser: "0",
+        // tokensToSell: "0",
+        // withdrawalTokenUser: "0",
+        // weiToSell: "0",
         recipient: "0x0..."
       },
       addressError: null,
@@ -64,28 +66,25 @@ class CashOutCard extends Component {
 
     // set the state to contain the proper withdrawal args for
     // eth or dai withdrawal
-    const { channelState, exchangeRate } = this.props;
+    const { channelState, connextState, exchangeRate } = this.props
     let { withdrawalVal } = this.state;
-    if (withdrawEth) {
+
+    if (withdrawEth && channelState && connextState) {
+      const { custodialBalance } = connextState.persistent
+      const amountToken = Big(channelState.balanceTokenUser).add(custodialBalance.balanceToken)
+      const amountWei = Big(channelState.balanceWeiUser).add(custodialBalance.balanceWei)
       // withdraw all channel balance in eth
       withdrawalVal = {
         ...withdrawalVal,
         exchangeRate,
-        tokensToSell: channelState.balanceTokenUser,
-        withdrawalWeiUser: channelState.balanceWeiUser,
+        tokensToSell: amountToken.toString(),
+        withdrawalWeiUser: amountWei.toString(),
         weiToSell: "0",
         withdrawalTokenUser: "0"
       };
     } else {
-      // handle withdrawing all channel balance in dai
-      withdrawalVal = {
-        ...withdrawalVal,
-        exchangeRate,
-        tokensToSell: "0",
-        withdrawalWeiUser: "0",
-        weiToSell: channelState.balanceWeiUser,
-        withdrawalTokenUser: channelState.balanceTokenUser
-      };
+      console.error("Not permitting withdrawal of tokens at this time")
+      return
     }
 
     this.setState({ withdrawalVal });
@@ -99,18 +98,14 @@ class CashOutCard extends Component {
   // wei in the channel
   async updateDisplayValue() {
     const { channelState, connextState } = this.props;
-    if (
-      !channelState ||
-      (channelState.balanceWeiUser === "0" &&
-        channelState.balanceTokenUser === "0")
-    ) {
+    if (!channelState) {
       this.setState({ aggregateBalance: "$0.00" });
       return;
     }
 
-    const usd = getChannelBalanceInUSD(channelState, connextState, false);
-
-    this.setState({ aggregateBalance: usd });
+    this.setState({
+      aggregateBalance: getOwedBalanceInDAI(connextState, false)
+    });
   }
 
   // update display value with the exchange rate/
@@ -138,21 +133,11 @@ class CashOutCard extends Component {
     });
   }
 
-  async checkState() {
-    const { channelState } = this.props;
-    if (channelState.pendingWithdrawalWeiUser !== "0") {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
   poller = async () => {
     await interval(
       async (iteration, stop) => {
         const { runtime } = this.props
-
-        if (!runtime.awaitingOnchainTransaction) {
+        if (!hasPendingTransaction(runtime)) {
           stop()
         }
       },
@@ -165,22 +150,23 @@ class CashOutCard extends Component {
   async withdrawalHandler(withdrawEth) {
     const { connext } = this.props;
     const withdrawalVal = await this.updateWithdrawalVals(withdrawEth);
-    this.setState({ addressError: null, balanceError: null });
+    const recipient = withdrawalVal.recipient.toLowerCase()
+    this.setState({ addressError: null });
     // check for valid address
-    // let addressError = null
-    // let balanceError = null
-    if (!Web3.utils.isAddress(withdrawalVal.recipient)) {
-      const addressError = `${
-        withdrawalVal.recipient === "0x0..."
-          ? "Must provide address."
-          : withdrawalVal.recipient + " is an invalid address"
-      }`;
-      this.setState({ addressError });
+    if (recipient === "0x0...") {
+      this.setState({ addressError: "Please provide an address" });
+      return;
+    }
+    if (!eth.utils.isHexString(recipient)) {
+      this.setState({ addressError: `Invalid hex string: ${recipient}` });
+      return;
+    }
+    if (eth.utils.arrayify(recipient).length !== 20) {
+      this.setState({ addressError: `Invalid length: ${recipient}` });
       return;
     }
     // check the input balance is under channel balance
-    // TODO: allow partial withdrawals?
-    //invoke withdraw modal
+    // invoke withdraw modal
     this.setState({ withdrawing: true });
 
     console.log(`Withdrawing: ${JSON.stringify(withdrawalVal, null, 2)}`);

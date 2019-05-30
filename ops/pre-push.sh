@@ -6,6 +6,7 @@ branch="`git symbolic-ref HEAD | sed -e 's|.*/\(.*\)|\1|'`"
 version="`git show :package.json | grep '"version":' | awk -F '"' '{print $4}'`"
 registry="https://index.docker.io/v1/repositories/connextproject"
 image="daicard"
+tag_prefix="daicard"
 
 if [[ "$branch" != "master" ]]
 then echo "Skipping pre-push hook for branch $branch" && exit
@@ -29,14 +30,11 @@ then
   echo
   if [[ "$REPLY" =~ ^[Yy]$ ]]
   then
-    git tag -f v$version
-    echo"!!!"
-    "You should override the remote tag too: git push origin v$version --no-verify --force"
-    echo "!!!"
-    echo
+    git tag $tag_prefix-$version || true
+    echo "You should override the remote tag too: git push origin $tag_prefix-$version --no-verify --force";echo
   fi
 else
   echo "connextproject/$image:$version does not exist on docker hub yet"
-  git tag v$version || true
-  echo "You should share this tag: git push origin v$version --no-verify";echo
+  git tag $tag_prefix-$version || true
+  echo "You should share this tag: git push origin $tag_prefix-$version --no-verify";echo
 fi

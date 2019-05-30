@@ -142,7 +142,7 @@ describe('Daicard', () => {
         my.goToCashout()
         cy.get('input[type="text"]').clear().type('0xabc123')
         cy.contains('button', /cash out eth/i).click()
-        cy.contains('p', /invalid address/i).should('exist')
+        cy.contains('p', /invalid/i).should('exist')
       })
     })
 

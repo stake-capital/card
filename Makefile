@@ -28,10 +28,10 @@ $(shell mkdir -p build .makeflags)
 # Begin Shortcut Rules
 .PHONY: default all dev prod stop clean purge push push-live
 
-default: hooks dev
-all: hooks dev prod proxy-test
-dev: node-modules proxy
-prod: proxy-prod
+default: dev
+all: dev prod proxy-test
+dev: hooks node-modules proxy
+prod: hooks proxy-prod
 
 start: dev
 	bash ops/deploy.dev.sh

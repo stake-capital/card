@@ -14,10 +14,6 @@ import {
 } from "@material-ui/core";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import CopyIcon from "@material-ui/icons/FileCopy";
-import * as Connext from 'connext';
-
-const { Currency, CurrencyConvertable, CurrencyType } = Connext
-const { getExchangeRates } = new Connext.Utils()
 
 const styles = theme => ({
   icon: {
@@ -71,15 +67,15 @@ const screens = (classes, minEth, minDai, maxEth, maxDai) => [
   {
     title: "Deposit Boundaries",
     message: `The card needs a minimum deposit of ${
-      minEth || "?.??"} eth (${
+      minEth || "?.??"} (${
       minDai || "?.??"}) to cover the gas costs of getting setup. Cards only accept deposits of ${
-      maxEth || "?.??"} eth (${
+      maxEth || "?.??"} (${
       maxDai || "?.??"}) or less, with any excess eth getting refunded.`
   },
   {
     title: "Depositing Tokens",
     message: `If you want to deposit dai directly, there are no deposit maximums enforced! Just make sure to send at least ${
-      minEth || "?.??"} eth (${
+      minEth || "?.??"} (${
       minDai || "?.??"}) for gas to your new wallet.`
   }
 ];
@@ -117,42 +113,21 @@ class SetupCard extends Component {
     const {
       classes,
       connextState,
-      browserMinimumBalance,
-      maxTokenDeposit
+      minDeposit,
+      maxDeposit
     } = this.props;
     const { index, open } = this.state;
 
     // get proper display values
-    // max token in BEI, min in wei and DAI
+    // max token in DEI, min in wei and DAI
     let minDai, minEth;
     let maxDai, maxEth;
-    if (connextState && browserMinimumBalance) {
-      const minConvertable = new CurrencyConvertable(
-        CurrencyType.WEI,
-        browserMinimumBalance.wei,
-        () => getExchangeRates(connextState)
-      );
+    if (connextState && minDeposit) {
 
-      const maxConvertable = new CurrencyConvertable(
-        CurrencyType.BEI,
-        maxTokenDeposit,
-        () => getExchangeRates(connextState)
-      );
-
-      minEth = minConvertable
-        .toETH()
-        .format({
-          decimals: 2,
-          withSymbol: false,
-        })
-      minDai = Currency.USD(browserMinimumBalance.dai).format({});
-      maxEth = maxConvertable
-        .toETH()
-        .format({
-          decimals: 2,
-          withSymbol: false,
-        })
-      maxDai = Currency.USD(maxConvertable.toUSD().amountBN).format({});
+      minEth = minDeposit.toETH().format()
+      minDai = minDeposit.toDAI().format();
+      maxEth = maxDeposit.toETH().format()
+      maxDai = maxDeposit.toDAI().format();
     }
 
     const display = screens(classes, minEth, minDai, maxEth, maxDai);

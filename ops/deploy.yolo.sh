@@ -15,8 +15,17 @@ function makePrompt {
 
 MODE="${1:-staging}"
 if [[ "$MODE" == "prod" ]]
-then prod_server="daicard.io"
-else prod_server="staging.connext.network"
+then
+  prod_server="daicard.io"
+  branch="master"
+elif [[ "$MODE" == "2020" ]]
+then
+  prod_server="2020.daicard.io"
+  branch="money2020"
+else
+  rinkeby_hub="DAICARD_RINKEBY_HUB_URL=https://staging.hub.connext.network"
+  prod_server="staging.connext.network"
+  branch="`git symbolic-ref HEAD | sed -e 's|.*/\(.*\)|\1|'`"
 fi
 
 user=ubuntu
@@ -53,10 +62,12 @@ then echo "Make sure you're logged into docker & have push permissions: docker l
 fi
 
 # Make sure the prod server has the card repo available
+echo "ssh -i $ssh_key $user@$prod_server \"bash -c 'git clone https://github.com/ConnextProject/card.git 2> /dev/null || true'\""
 ssh -i $ssh_key $user@$prod_server "bash -c 'git clone https://github.com/ConnextProject/card.git 2> /dev/null || true'"
 
-# Make sure the prod server's repo is up to date with master
-ssh -i $ssh_key $user@$prod_server "bash -c 'cd card && git fetch && git reset --hard origin/master'"
+# Make sure the prod server's repo is up to date with the branch-of-interest
+echo "ssh -i $ssh_key $user@$prod_server \"bash -c 'cd card && git fetch && git checkout --force $branch && git reset --hard origin/$branch'\""
+ssh -i $ssh_key $user@$prod_server "bash -c 'cd card && git fetch && git checkout --force $branch && git reset --hard origin/$branch'"
 
 echo;echo
 echo "Preparing to re-deploy the card app to $prod_server. Without running any tests. Good luck."
@@ -64,4 +75,5 @@ echo;echo
 sleep 2 # Give the user one last chance to ctrl-c before we pull the trigger
 
 # Deploy!
-ssh -i $ssh_key $user@$prod_server "bash -c 'cd card && DAICARD_DOMAINNAME=$prod_server bash ops/restart.sh prod'"
+echo "ssh -i $ssh_key $user@$prod_server \"bash -c 'cd card && DAICARD_DOMAINNAME=$prod_server DAICARD_MODE=staging $rinkeby_hub bash ops/restart.sh prod'\""
+ssh -i $ssh_key $user@$prod_server "bash -c 'cd card && DAICARD_DOMAINNAME=$prod_server DAICARD_MODE=staging $rinkeby_hub bash ops/restart.sh prod'"

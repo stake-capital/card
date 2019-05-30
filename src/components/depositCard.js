@@ -8,10 +8,6 @@ import Grid from "@material-ui/core/Grid";
 import QRGenerate from "./qrGenerate";
 import MySnackbar from "./snackBar";
 import { withStyles } from "@material-ui/core";
-import * as Connext from 'connext';
-
-const { Currency, CurrencyConvertable, CurrencyType } = Connext
-const { getExchangeRates } = new Connext.Utils()
 
 const styles = theme => ({
   icon: {
@@ -36,29 +32,13 @@ class DepositCard extends Component {
   };
 
   render() {
-    const { classes, address, connextState, browserMinimumBalance, maxTokenDeposit } = this.props;
-    const { copied, } = this.state;
+    const { classes, address, minDeposit, maxDeposit } = this.props;
+    const { copied } = this.state;
 
-    let minEth//, minDai
-    let maxDai, maxEth
-    if (connextState && connextState.runtime.canDeposit && browserMinimumBalance) {
-      const minConvertable = new CurrencyConvertable(
-        CurrencyType.WEI,
-        browserMinimumBalance.wei,
-        () => getExchangeRates(connextState)
-      )
-
-      const maxConvertable = new CurrencyConvertable(
-        CurrencyType.BEI,
-        maxTokenDeposit,
-        () => getExchangeRates(connextState)
-      )
-
-      minEth = minConvertable.toETH().amountBigNumber.toFixed()
-      //minDai = Currency.USD(browserMinimumBalance.dai).format({})
-      maxEth = maxConvertable.toETH().amountBigNumber.toFixed()
-      maxDai = Currency.USD(maxConvertable.toUSD().amountBigNumber).format({})
-    }
+    
+    const minEth = minDeposit ? minDeposit.toETH().format() : '?.??'
+    const maxEth = maxDeposit ? maxDeposit.toETH().format() : '?.??'
+    const maxDai = maxDeposit ? maxDeposit.toDAI().format() : '?.??'
 
     return (
       <Grid
@@ -98,7 +78,7 @@ class DepositCard extends Component {
               disableTouchListener
               title="Because gas"
             >
-              <span>{`Deposit minimum of: ${minEth || ""} Eth.`}</span>
+              <span>{`Deposit minimum of: ${minEth || "?.??"}.`}</span>
             </Tooltip>
           </Typography>
         </Grid>
@@ -125,8 +105,8 @@ class DepositCard extends Component {
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">
-            <span>{`Deposits over ${maxEth ? maxEth.substring(0, 4) : ""} Eth 
-                      or ${maxDai ? maxDai.substring(1, 3) : ""} Dai will be refunded`}</span>
+            <span>{`Deposits over ${maxEth || "?.??"} Eth 
+                      or ${maxDai || "?.??"} Dai will be refunded`}</span>
           </Typography>
         </Grid>
         <Grid item xs={12}>

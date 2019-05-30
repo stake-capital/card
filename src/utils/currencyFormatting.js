@@ -1,47 +1,36 @@
 import * as Connext from "connext";
+import { ethers as eth } from 'ethers'
 
-const { CurrencyConvertable, CurrencyType, Currency } = Connext
-const { getExchangeRates } = new Connext.Utils()
+const { formatEther } = eth.utils
+const { getExchangeRates, getCustodialAndChannelBalance } = new Connext.Utils()
 
-export function getChannelBalanceInUSD(channelState, connextState, onlyTokens = true) {
-  if (!connextState || !channelState) {
-    return "$0.00"
+export function getOwedBalanceInDAI(connextState, onlyTokens = true) {
+  if (!connextState || JSON.stringify(getExchangeRates(connextState)) === '{}') {
+    return "0.00"
   }
-
-  const convertableTokens = new CurrencyConvertable(CurrencyType.BEI, channelState.balanceTokenUser, () => getExchangeRates(connextState))
-
+  const rateGetter = () => getExchangeRates(connextState)
+  const totalOwed = getCustodialAndChannelBalance(connextState)
+  const tokensOwed = Connext.Currency.DEI(totalOwed.amountToken, rateGetter)
   if (onlyTokens) {
-    return Currency.USD(convertableTokens.toUSD().amountBigNumber).format({})
+    return tokensOwed.toDAI().format({ withSymbol: false })
   }
-
-  const convertableWei = new CurrencyConvertable(CurrencyType.WEI, channelState.balanceWeiUser, () => getExchangeRates(connextState))
-
-  console.log('total:', convertableTokens.toBEI().amountBigNumber.plus(convertableWei.toBEI().amountBigNumber).toFixed(0))
-
-  const total = new CurrencyConvertable(
-    CurrencyType.BEI,
-    convertableTokens.toBEI().amountBigNumber.plus(convertableWei.toBEI().amountBigNumber),
-    () => getExchangeRates(connextState)
-  ).toUSD().amountBigNumber
-
-  return  Currency.USD(total).format({})
+  const weiOwed = Connext.Currency.WEI(totalOwed.amountWei, rateGetter)
+  const totalAmount = formatEther(weiOwed.amountWad.add(tokensOwed.toWEI().amountWad))
+  const total = Connext.Currency.WEI(totalAmount, rateGetter)
+  return total.toDAI().format({ withSymbol: false })
 }
 
-export function getAmountInUSD(amount, connextState, onlyTokens = true) {
-  if (!connextState || !amount) {
-    return "$0.00"
+export function getAmountInDAI(amounts, connextState, onlyTokens = true) {
+  if (!amounts || !connextState || JSON.stringify(getExchangeRates(connextState)) === '{}') {
+    return "0.00"
   }
-  const convertableTokens = new CurrencyConvertable(CurrencyType.BEI, amount.amountToken, () => getExchangeRates(connextState))
-
+  const rateGetter = () => getExchangeRates(connextState)
+  const tokenAmount = Connext.Currency.DEI(amounts.amountToken, rateGetter)
   if (onlyTokens) {
-    return Currency.USD(convertableTokens.toUSD().amountBigNumber).format({})
+    return tokenAmount.toDAI().format({ withSymbol: false })
   }
-
-  const convertableWei = new CurrencyConvertable(CurrencyType.WEI, amount.amountWei, () => getExchangeRates(connextState))
-
-  const totalBalance = Currency.USD(
-    convertableTokens.toBEI().amountBigNumber.plus(convertableWei.toBEI)
-  ).format({})
-
-  return totalBalance
+  const weiAmount = Connext.Currency.WEI(amounts.amountWei, rateGetter)
+  const totalWei = formatEther(weiAmount.amountWad.add(tokenAmount.toWEI().amountWad))
+  const totalAmount = Connext.Currency.WEI(totalWei, rateGetter).toDAI()
+  return totalAmount.format({ withSymbol: false })
 }
