@@ -1,7 +1,7 @@
 # dTok Dai Card
 
 <p align="center">
-  <img src="https://github.com/stake-capital/dTok-dai-card/tree/master/src/assets/dTok/dtok-logo.jpg" />
+  <img src="https://github.com/stake-capital/dTok-dai-card/blob/master/src/assets/dTok/dtok-logo.jpg" />
 </p>
 
 
