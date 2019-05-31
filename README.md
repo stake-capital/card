@@ -1,5 +1,10 @@
 # dTok Dai Card
 
+<p align="center">
+  <img src="https://github.com/stake-capital/dTok-dai-card/tree/master/src/assets/dTok/dtok-logo.jpg" />
+</p>
+
+
 dTok is a decentralized pay-as-you-go live streaming platform 📹. Decentralized transcoding is handled via [Livepeer](https://livepeer.org/) and micro-payments via the [Connext Network](https://connext.network/).
 
 This dTok stream viewing dApp is built on top of Dai Card. Inspired by the SpankCard and Austin Griffith's burner wallet, Dai Card is a simple offchain wallet, hosted in the browser, which utilizes Connext's Indra payment channels.
