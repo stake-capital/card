@@ -27,9 +27,18 @@ Prerequisites
 
 ### Local development
 
-1. **(skip to step #2 below if running Indra on Rinkeby)** Make sure you have indra running locally. Check out the instructions in the [indra repo](https://github.com/ConnextProject/indra).
+1. Make sure you have indra running locally. Check out the instructions in the [indra repo](https://github.com/ConnextProject/indra).
 
-TL;DR run:
+TL;DR:
+
+Ensure that you have the following installed:
+
+- `make`: (probably already installed) Install w `brew install make` or `apt install make` or similar.
+- `jq`: (probably not installed yet) Install w `brew install jq` or `apt install jq` or similar.
+- [`docker`](https://www.docker.com/)
+- [`node` and `npm`](https://nodejs.org/en/)
+
+Then run:
 
 ```
 git clone https://github.com/ConnextProject/indra.git
@@ -62,8 +71,9 @@ bash ops/logs.sh server
 
  - If you started with `npm start`, browse to `http://localhost:3000`
  - If you started with `make start`, browse to `http://localhost`
+ - NOTE: If you started the card with `make` and you can view the Indra dashboard here: `http://localhost:3000/dashboardd/`
 
-4. **(for Rinkeby development)** If you running with Indra on Rinkeby, ensure that `Rinkeby` is selected from the settings dialog (located in the upper right corner of the application).
+4. **(for Rinkeby development)** If you would like to use Indra on Rinkeby, ensure that `Rinkeby` is selected from the settings dialog (located in the upper right corner of the application). This will use the already-deployed Rinkeby Indra hub.
 
 ### Testing locally
 
