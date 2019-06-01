@@ -102,7 +102,8 @@ class SettingsCard extends Component {
 
   async recoverAddressFromMnemonic() {
     localStorage.setItem("mnemonic", this.state.mnemonic);
-    window.location.reload();
+    // Redirect the user to the main page
+    window.location.href = "/";
   }
 
   async updateRPC(event) {
