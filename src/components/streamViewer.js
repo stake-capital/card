@@ -266,7 +266,7 @@ class PayCard extends Component {
     if (streamViewingEnabled) {
 
       // Set the price per minute
-      const pricePerMinute = "0.02";
+      const pricePerMinute = "0.01";
 
       // Set the amount to charge the user
       await this.setState(oldState => {
@@ -275,7 +275,7 @@ class PayCard extends Component {
       });
 
       // Set the address to send the money to on the hub
-      this.updateRecipientHandler("0x648831353f57bfea9a95b9f46b249121140c12ff");
+      this.updateRecipientHandler("0xb939adca7cecd82dcfa20cb9d092a1d5efa31a58");
 
       // Execute the payment
       this.paymentHandler();
@@ -515,7 +515,7 @@ class PayCard extends Component {
         >
           <Grid item xs={12}>
             {(streamViewingEnabled && parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
-              <iframe title="stream" className={classes.streamIframe} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Ff7b14850.ngrok.io%2Fstream%2Fcd0207af4682cd2340a319dfe973f5261d3de64e34faf4d12eca5eb697a0c8f7P720p30fps16x9.m3u8" allowFullScreen></iframe>
+              <iframe title="stream" className={classes.streamIframe} src="http://media.livepeer.org/embed?aspectRatio=16%3A9&maxWidth=100%25&url=http%3A%2F%2Fd7eb1baa.ngrok.io%2Fstream%2Fa24de3ee390b3ddfc73882f4372fa86316bc484a69ae9dbe7b1bb9bad6502de7P720p30fps16x9.m3u8" allowFullScreen></iframe>
             }
             {((!streamViewingEnabled) && parseInt(getOwedBalanceInDAI(connextState, false)) > 0) &&
               <div className={classes.streamBlocker}>
