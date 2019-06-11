@@ -20,6 +20,10 @@ import Web3 from "web3";
 import { Link } from "react-router-dom";
 import MySnackbar from "./snackBar";
 import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
+import { Drizzle } from 'drizzle'
+
+// Import contracts
+import dTokStreams from '../contracts/dTokStreams.json';
 
 const Big = (n) => eth.utils.bigNumberify(n.toString())
 const convertPayment = Connext.convert.Payment
@@ -255,8 +259,39 @@ class PayCard extends Component {
   }
 
   async componentDidMount() {
+    const { web3 } = this.props;
+    
     // Setup interval for continually billing the user while watching the stream
     setInterval(this.chargeTheUserForViewing, (1000 * 60));
+
+    // Get the current streams (from Ethereum mainnet)
+    const options = {
+      contracts: [
+        dTokStreams
+      ],
+      web3: {
+        customProvider: web3
+      }
+    };
+
+    const drizzle = new Drizzle(options);
+
+    setTimeout(() => {
+      // Assuming we're observing the store for changes.
+      var state = drizzle.store.getState();
+
+      console.log("TESTING");
+      console.log(state.drizzleStatus);
+      // If Drizzle is initialized (and therefore web3, accounts and contracts), continue.
+      if (state.drizzleStatus.initialized) {
+        const dataKey = drizzle.contracts.dTokStreams.methods.streams.cacheCall();
+        console.log(dataKey);
+        console.log(state.contracts.dTokStreams);
+        // Use the dataKey to display data from the store.
+        const data = state.contracts.dTokStreams.methods.streams["0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"].value;
+        console.log(data);
+      }
+    }, 5000);
   }
 
   chargeTheUserForViewing = async () => {
