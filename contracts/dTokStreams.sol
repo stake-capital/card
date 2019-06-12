@@ -10,6 +10,7 @@ contract dTokStreams {
     }
 
     mapping(address => Stream) public streams; // One stream per address
+    address[] public addrLookUpTable; // Used to iterate over all addresses corresponding to streams
 
     /*
     * @notice Create a record for a new dTok stream
@@ -20,6 +21,15 @@ contract dTokStreams {
 
         require(bytes(_url).length > 0, ERROR_NO_STREAM_URL_PROVIDED);
 
+        // Save new Stream struct to mapping
         streams[msg.sender] = Stream(_url, _title);
+
+        // Save the mapped address to the look up table (for accessing all streams)
+        addrLookUpTable.push(msg.sender);
+    }
+
+    // A public getter for array size is required
+    function size() view public returns (uint) {
+        return addrLookUpTable.length;
     }
 }
