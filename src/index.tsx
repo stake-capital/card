@@ -4,6 +4,13 @@ import "./index.css";
 import App from "./App";
 import * as serviceWorker from "./serviceWorker";
 import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles/";
+
+const drizzle = require('drizzle-react');
+const DrizzleProvider = drizzle.DrizzleProvider;
+
+// Import contracts
+import dTokStreams from './contracts/dTokStreams.json';
+
 require("dotenv").config();
 
 const theme = createMuiTheme({
@@ -21,9 +28,17 @@ const theme = createMuiTheme({
   }
 });
 
+const drizzle_options = {
+  contracts: [
+    dTokStreams
+  ]
+};
+
 ReactDOM.render(
   <MuiThemeProvider theme={theme}>
-    <App />
+    <DrizzleProvider options={drizzle_options}>
+      <App />
+    </DrizzleProvider>
   </MuiThemeProvider>,
   document.getElementById("root")
 );

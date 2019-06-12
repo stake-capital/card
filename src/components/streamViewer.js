@@ -1,5 +1,6 @@
 import * as Connext from 'connext';
 import React, { Component } from "react";
+import PropTypes from 'prop-types'; 
 import Button from "@material-ui/core/Button";
 import RemoveRedEye from "@material-ui/icons/RemoveRedEye";
 import Block from "@material-ui/icons/Block";
@@ -20,10 +21,7 @@ import Web3 from "web3";
 import { Link } from "react-router-dom";
 import MySnackbar from "./snackBar";
 import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
-import { Drizzle } from 'drizzle'
-
-// Import contracts
-import dTokStreams from '../contracts/dTokStreams.json';
+import { drizzleConnect } from 'drizzle-react';
 
 const Big = (n) => eth.utils.bigNumberify(n.toString())
 const convertPayment = Connext.convert.Payment
@@ -232,8 +230,8 @@ const PaymentConfirmationDialog = props => (
   </Dialog>
 );
 
-class PayCard extends Component {
-  constructor(props) {
+class StreamViewer extends Component {
+  constructor(props, context) {
     super(props);
 
     this.state = {
@@ -256,47 +254,21 @@ class PayCard extends Component {
       paymentState: PaymentStates.None,
       showReceipt: false
     };
+
+    // Save the Drizzle contracts to an easily accessible instance variable
+    this.contracts = context.drizzle.contracts;
+    // Only make the cacheCalls if Drizzle has been properly initialized
+    if (props.drizzleStatus.initialized) {
+      // Make all cacheCalls for all data that is needed by this route / component
+      this.contracts.dTokStreams.methods.size.cacheCall();
+    }
   }
 
-  async componentDidMount() {
-    const { web3 } = this.props;
-    
+
+
+  async componentDidMount() {    
     // Setup interval for continually billing the user while watching the stream
     setInterval(this.chargeTheUserForViewing, (1000 * 60));
-
-    // Get the current streams (from Ethereum mainnet)
-    const options = {
-      contracts: [
-        dTokStreams
-      ],
-      web3: {
-        customProvider: web3
-      }
-    };
-
-    const drizzle = new Drizzle(options);
-
-    setTimeout(() => {
-      // Assuming we're observing the store for changes.
-      var state = drizzle.store.getState();
-
-      console.log("TESTING");
-      drizzle.contracts.dTokStreams.methods.streams("0x2e0c58a42adf0449a3bc84d28d5f76cd39dced5b").call().then(console.log).catch(console.error);
-      console.log(state.drizzleStatus);
-      // If Drizzle is initialized (and therefore web3, accounts and contracts), continue.
-      if (state.drizzleStatus.initialized) {
-        const dataKey = drizzle.contracts.dTokStreams.methods.streams.cacheCall("0x2e0c58a42adf0449a3bc84d28d5f76cd39dced5b");
-        console.log(dataKey);
-
-        setTimeout(() => {
-          var new_state = drizzle.store.getState();
-          console.log(new_state.contracts.dTokStreams);
-          // Use the dataKey to display data from the store.
-          const data = new_state.contracts.dTokStreams.streams[dataKey].value;
-          console.log(data);
-        }, 5000);
-      }
-    }, 5000);
   }
 
   chargeTheUserForViewing = async () => {
@@ -531,6 +503,10 @@ class PayCard extends Component {
   render() {
     const { connextState, classes } = this.props;
     const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled } = this.state;
+
+    // Example of accessing variable from Drizzle...
+    console.log(this.props.dTokStreams.size);
+
     return (
       <Grid
         container
@@ -686,4 +662,15 @@ class PayCard extends Component {
   }
 }
 
-export default withStyles(styles)(PayCard);
+StreamViewer.contextTypes = {
+  drizzle: PropTypes.object,
+};
+
+const mapStateToProps = state => {
+  return {
+    drizzleStatus: state.drizzleStatus,
+    dTokStreams: state.contracts.dTokStreams
+  }
+}
+
+export default withStyles(styles)(drizzleConnect(StreamViewer, mapStateToProps));
