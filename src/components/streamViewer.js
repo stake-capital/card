@@ -281,15 +281,20 @@ class PayCard extends Component {
       var state = drizzle.store.getState();
 
       console.log("TESTING");
+      drizzle.contracts.dTokStreams.methods.streams("0x2e0c58a42adf0449a3bc84d28d5f76cd39dced5b").call().then(console.log).catch(console.error);
       console.log(state.drizzleStatus);
       // If Drizzle is initialized (and therefore web3, accounts and contracts), continue.
       if (state.drizzleStatus.initialized) {
-        const dataKey = drizzle.contracts.dTokStreams.methods.streams.cacheCall();
+        const dataKey = drizzle.contracts.dTokStreams.methods.streams.cacheCall("0x2e0c58a42adf0449a3bc84d28d5f76cd39dced5b");
         console.log(dataKey);
-        console.log(state.contracts.dTokStreams);
-        // Use the dataKey to display data from the store.
-        const data = state.contracts.dTokStreams.methods.streams["0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"].value;
-        console.log(data);
+
+        setTimeout(() => {
+          var new_state = drizzle.store.getState();
+          console.log(new_state.contracts.dTokStreams);
+          // Use the dataKey to display data from the store.
+          const data = new_state.contracts.dTokStreams.streams[dataKey].value;
+          console.log(data);
+        }, 5000);
       }
     }, 5000);
   }
