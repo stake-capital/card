@@ -291,8 +291,13 @@ class StreamViewer extends Component {
       const streamAuthorAddr = this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation];
       // Make the cacheCall for the stream data corrosponding to the author address from the current loop iteration
       const streamDataAddr = this.contracts.dTokStreams.methods.streams.cacheCall(streamAuthorAddr.value);
-      // Store the stream (storage location) key to the component's state (for use displaying the streams dropdown)
-      this.setState({ currentStreamKey: streamDataAddr });
+      // Wait until the `streams` entry has been loaded by the cacheCall
+      await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.streams[streamDataAddr] !== undefined));
+      // Set the first stream processed as the default stream displayed
+      if (i === 0) {
+        // Store the stream (storage location) key to the component's state (for use displaying the streams dropdown)
+        this.setState({ currentStreamKey: streamDataAddr });
+      }
     }
   }
 
@@ -546,8 +551,6 @@ class StreamViewer extends Component {
     if (Object.keys(dTokStreams.streams).length < 1 || currentStreamKey === null) {
       return <div>No streams avaliable...</div>;
     }
-
-    console.log(dTokStreams);
 
     return (
       <Grid
