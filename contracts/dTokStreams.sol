@@ -3,6 +3,7 @@ pragma solidity ^0.5.0;
 contract dTokStreams {
     
     string internal constant ERROR_NO_STREAM_URL_PROVIDED = "NO_STREAM_URL_PROVIDED";
+    string internal constant ERROR_ONE_STREAM_PER_USER = "ONE_STREAM_PER_USER";
 
     struct Stream {
         string url;
@@ -20,6 +21,7 @@ contract dTokStreams {
     function createStream(string memory _url, string memory _title) public {
 
         require(bytes(_url).length > 0, ERROR_NO_STREAM_URL_PROVIDED);
+        require(bytes(streams[msg.sender].url).length == 0, ERROR_ONE_STREAM_PER_USER); // A hacky way to check if the sender has already authored an existing stream (only one stream per user is currently allowed)
 
         // Save new Stream struct to mapping
         streams[msg.sender] = Stream(_url, _title);
