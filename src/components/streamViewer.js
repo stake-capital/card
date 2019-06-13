@@ -259,16 +259,50 @@ class StreamViewer extends Component {
     this.contracts = context.drizzle.contracts;
     // Only make the cacheCalls if Drizzle has been properly initialized
     if (props.drizzleStatus.initialized) {
-      // Make all cacheCalls for all data that is needed by this route / component
-      this.contracts.dTokStreams.methods.size.cacheCall();
+      this.initialDrizzleCacheCalls(); // Make all of the cacheCalls to get Drizzle data setup for streams contract
     }
   }
-
-
 
   async componentDidMount() {    
     // Setup interval for continually billing the user while watching the stream
     setInterval(this.chargeTheUserForViewing, (1000 * 60));
+  }
+
+  /*
+   * This function is used to make all of the needed initial calls to setup the streams data via Drizzle
+   */
+  initialDrizzleCacheCalls = async () => {
+    // Make the cacheCall for `size` (represents the length of the stream author addresses array)
+    this.contracts.dTokStreams.methods.size.cacheCall();
+    // Wait until the `size` data has been loaded by the cacheCall
+    await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.size["0x0"] !== undefined));
+    // Store the (now avaliable) `size` data into a variable
+    const size = this.props.dTokStreams.size["0x0"].value;
+    // Iterate over all of the stream author addresses in the addrLookUpTable
+    for (let i = 0; i < size; i++) {
+      // Make the cacheCall for each author address from the `addrLookUpTable` array
+      const authorAddrDataLocation = this.contracts.dTokStreams.methods.addrLookUpTable.cacheCall(i);
+      // Wait until the `addrLookUpTable` entry has been loaded by the cacheCall
+      await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation] !== undefined));
+      // Store the (now avaliable) `addrLookUpTable` entry data into a variable
+      const streamAuthorAddr = this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation];
+      // Make the cacheCall for the stream data corrosponding to the author address from the current loop iteration
+      this.contracts.dTokStreams.methods.streams.cacheCall(streamAuthorAddr.value);
+    }
+  }
+
+  /*
+   * This is a simple stateless helper function that awaits until the provided function returns true.
+   */
+  async waitUntilConditionalFuncTrueHelper(checkConditional) {
+    // Define an async function for sleeping
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Loop until the checkConditional functions results in a true condition
+    while (true) {
+      if (checkConditional()) { break; }
+      await sleep(100); // Sleep for 1/10 of a second
+    }
   }
 
   chargeTheUserForViewing = async () => {
@@ -504,8 +538,7 @@ class StreamViewer extends Component {
     const { connextState, classes } = this.props;
     const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled } = this.state;
 
-    // Example of accessing variable from Drizzle...
-    console.log(this.props.dTokStreams.size);
+    console.log(this.props.dTokStreams);
 
     return (
       <Grid
