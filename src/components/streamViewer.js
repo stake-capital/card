@@ -8,6 +8,8 @@ import * as eth from 'ethers';
 import {
   withStyles,
   Grid,
+  Select,
+  MenuItem,
   Typography,
   CircularProgress,
   Dialog,
@@ -252,7 +254,8 @@ class StreamViewer extends Component {
       addressError: null,
       balanceError: null,
       paymentState: PaymentStates.None,
-      showReceipt: false
+      showReceipt: false,
+      currentStreamKey: null // Used to store the key corrosponding to the location of the stream data storage in the contract
     };
 
     // Save the Drizzle contracts to an easily accessible instance variable
@@ -287,7 +290,9 @@ class StreamViewer extends Component {
       // Store the (now avaliable) `addrLookUpTable` entry data into a variable
       const streamAuthorAddr = this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation];
       // Make the cacheCall for the stream data corrosponding to the author address from the current loop iteration
-      this.contracts.dTokStreams.methods.streams.cacheCall(streamAuthorAddr.value);
+      const streamDataAddr = this.contracts.dTokStreams.methods.streams.cacheCall(streamAuthorAddr.value);
+      // Store the stream (storage location) key to the component's state (for use displaying the streams dropdown)
+      this.setState({ currentStreamKey: streamDataAddr });
     }
   }
 
@@ -535,10 +540,14 @@ class StreamViewer extends Component {
   };
 
   render() {
-    const { connextState, classes } = this.props;
-    const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled } = this.state;
+    const { connextState, classes, dTokStreams } = this.props;
+    const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled, currentStreamKey } = this.state;
 
-    console.log(this.props.dTokStreams);
+    if (Object.keys(dTokStreams.streams).length < 1 || currentStreamKey === null) {
+      return <div>No streams avaliable...</div>;
+    }
+
+    console.log(dTokStreams);
 
     return (
       <Grid
@@ -555,6 +564,26 @@ class StreamViewer extends Component {
           justify: "center"
         }}
       >
+        <Grid item xs={12}>
+          <Select
+            fullWidth
+            value={currentStreamKey}
+            onChange={e => this.setState({ currentStreamKey: e.target.value })}
+            style={{
+              border: "1px solid #3CB8F2",
+              color: "#3CB8F2",
+              textAlign: "center",
+              borderRadius: "4px",
+              height: "45px"
+            }}
+            disableUnderline
+            IconComponent={() => null}
+          >
+            {Object.keys(dTokStreams.streams).map(streamKey => (
+              <MenuItem value={streamKey} key={streamKey}>{dTokStreams.streams[streamKey].value.title}</MenuItem>
+            ))}
+          </Select>
+        </Grid>
         <Grid
           container
           wrap="nowrap"
