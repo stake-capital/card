@@ -67,6 +67,22 @@ bash ops/logs.sh server
 
 4. **(for Rinkeby development)** If you running with Indra on Rinkeby, ensure that `Rinkeby` is selected from the settings dialog (located in the upper right corner of the application).
 
+### Truffle Deployment
+
+All multi-streams data is handled via the [`dTokStreams` contract](/contracts/dTokStreams.sol). To compile the contract with Truffle, simply run (first, ensure that you have Truffle installed via `npm install -g truffle`):
+
+```
+truffle compile
+```
+
+To deploy the contract locally, you can run Ganache using: `ganache-cli` (if Ganache isn't installed yet, simply run: `npm install -g ganache-cli`). Once Ganache is running, migrate the contracts using:
+
+```
+truffle migrate
+```
+
+[Via Drizzle](/src/index.js#L39), the [streamViewer component](/src/components/streamViewer.js#L741) automatically knows the deployment address of the contract.
+
 ### Testing locally
 
 To run the tests during local development, start the test watcher with:
