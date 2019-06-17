@@ -6,6 +6,9 @@ docker container stop ${project}_builder 2> /dev/null || true
 docker container stop connext_card 2> /dev/null || true
 docker stack rm $project 2> /dev/null || true
 
+# Remove symlink to contracts directory (the symlink is for accessing files outside of ./src directory)
+rm -rf $(pwd)/src/contracts
+
 echo -n "Waiting for the $project stack to shutdown."
 
 # wait until there are no more connext containers

@@ -5,6 +5,9 @@ number_of_services=2
 proxy_image="${project}_proxy:dev"
 server_image="${project}_builder"
 
+# Create symlink to contracts directory (since files outside of ./src cannot be accessed)
+ln -sf ../build/contracts $(pwd)/src/contracts
+
 mkdir -p /tmp/$project
 cat - > /tmp/$project/docker-compose.yml <<EOF
 version: '3.4'
