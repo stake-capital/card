@@ -17,6 +17,8 @@ See it live at: https://dtok.stake.capital
 - [Development](#development)
     - [Local Development](#local-development)
     - [Testing Locally](#testing-locally)
+- [Features](#features)
+    - [Pre-funded Wallets](#pre-funded-wallets)
 
 ## Development
 
@@ -90,3 +92,21 @@ You can also run the more heavy-duty e2e tests that will be run as part of CI in
 ```
 npm run test
 ```
+
+## Features
+
+### Pre-funded Wallets
+
+To maximise the ease of onboarding new users, prefunded [dai-card](https://daicard.io/) wallets can be used to generated and then shared. For example, if the prefunded wallet's mnemonic is the follow:
+
+```
+toilet civil kite grass little slogan critic whale guilt risk banner quarter
+```
+
+Then the following URL can be shared for a user to access the pre-funded wallet:
+
+```
+http://localhost/settings?mnemonic=toilet%20civil%20kite%20grass%20little%20slogan%20critic%20whale%20guilt%20risk%20banner%20quarter
+```
+
+Currently, these pre-funded wallets must be generated manually. (We plan to include a script for generating them programmatically in the future).

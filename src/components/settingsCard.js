@@ -22,6 +22,7 @@ import SubmitIcon from "@material-ui/icons/ArrowRight";
 import SettingsIcon from "@material-ui/icons/Settings";
 import MySnackbar from "./snackBar";
 import interval from "interval-promise";
+const queryString = require("query-string");
 
 const styles = {
   card: {
@@ -58,6 +59,23 @@ class SettingsCard extends Component {
       copied: false,
       showWarning: false
     };
+  }
+
+  async componentDidMount() {
+    // For requests that subscribe to this format:
+    //    http://localhost/settings?mnemonic=toilet%20civil%20kite%20grass%20little%20slogan%20critic%20whale%20guilt%20risk%20banner%20quarter
+    // The mnemonic is parsed out:
+    //    toilet civil kite grass little slogan critic whale guilt risk banner quarter
+    // And then saved to local storage.
+    
+    const { location } = this.props;
+    const query = queryString.parse(location.search);
+    if (query.mnemonic) { // TODO: UX may be improved by checking if the parsed mnemonic looks properly formed
+      // Set the mnemonic parsed from the query string to the state
+      await this.setState({ mnemonic: query.mnemonic });
+      // Call the mnemonic recovery function
+      this.recoverAddressFromMnemonic();
+    }
   }
 
   closeModal = async () => {
@@ -102,7 +120,8 @@ class SettingsCard extends Component {
 
   async recoverAddressFromMnemonic() {
     localStorage.setItem("mnemonic", this.state.mnemonic);
-    window.location.reload();
+    // Redirect the user to the main page
+    window.location.href = "/";
   }
 
   async updateRPC(event) {
