@@ -5,20 +5,9 @@ number_of_services=2
 proxy_image="${project}_proxy:dev"
 server_image="${project}_builder"
 
-if [[ -z "`docker network ls -f name=$project | grep -w $project`" ]]
-then
-  id=`docker network create --attachable --driver overlay $project`
-  echo "Created ATTACHABLE network with id $id"
-fi
-
 mkdir -p /tmp/$project
 cat - > /tmp/$project/docker-compose.yml <<EOF
 version: '3.4'
-networks:
-  indra:
-    external: true
-  $project:
-    external: true
 volumes:
   certs:
 services:
@@ -26,10 +15,7 @@ services:
     image: $proxy_image
     environment:
       MODE: dev
-      LOCAL_HUB_URL: http://indra_proxy
-    networks:
-      - $project
-      - indra
+      LOCAL_HUB_URL: http://172.17.0.1:3000
     ports:
       - "80:80"
     volumes:
@@ -37,13 +23,8 @@ services:
   server:
     image: $server_image
     entrypoint: npm start
-    networks:
-      - $project
     volumes:
       - `pwd`:/root
-    environment:
-      REACT_APP_RINKEBY_HUB_OVERRIDE: https://rinkeby.hub.connext.network/api/hub
-      REACT_APP_MAINNET_HUB_OVERRIDE: https://hub.connext.network/api/hub
 EOF
 
 docker stack deploy -c /tmp/$project/docker-compose.yml $project

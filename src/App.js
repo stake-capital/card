@@ -20,6 +20,7 @@ import RedeemCard from "./components/redeemCard";
 import SetupCard from "./components/setupCard";
 import Confirmations from "./components/Confirmations";
 import MySnackbar from "./components/snackBar";
+import { drizzleConnect } from 'drizzle-react';
 
 const humanTokenAbi = require("./abi/humanToken.json");
 
@@ -439,7 +440,7 @@ class App extends React.Component {
       ethprovider,
       status
     } = this.state;
-    const { classes } = this.props;
+    const { classes, drizzleStatus } = this.props;
     return (
       <Router>
         <Grid className={classes.app}>
@@ -537,16 +538,19 @@ class App extends React.Component {
             <Route
               path="/viewstream"
               render={props => (
-                <StreamViewer
-                  {...props}
-                  web3={ethprovider}
-                  connext={connext}
-                  address={address}
-                  channelState={channelState}
-                  publicUrl={publicUrl}
-                  scanArgs={sendScanArgs}
-                  connextState={connextState}
-                />
+                drizzleStatus.initialized ?
+                  <StreamViewer
+                    {...props}
+                    web3={ethprovider}
+                    connext={connext}
+                    address={address}
+                    channelState={channelState}
+                    publicUrl={publicUrl}
+                    scanArgs={sendScanArgs}
+                    connextState={connextState}
+                  />
+                :
+                  <div>Loading...</div>
               )}
             />
             <Route
@@ -578,4 +582,10 @@ class App extends React.Component {
   }
 }
 
-export default withStyles(styles)(App);
+const mapStateToProps = state => {
+  return {
+    drizzleStatus: state.drizzleStatus
+  }
+}
+
+export default withStyles(styles)(drizzleConnect(App, mapStateToProps));

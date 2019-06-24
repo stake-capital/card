@@ -33,14 +33,18 @@ all: dev prod proxy-test
 dev: hooks node-modules proxy
 prod: hooks proxy-prod
 
+stop:
+	bash ops/stop.sh
+
 start: dev
 	bash ops/deploy.dev.sh
 
 start-prod: prod
 	bash ops/deploy.prod.sh
 
-stop:
+restart:
 	bash ops/stop.sh
+	bash ops/deploy.dev.sh
 
 clean: stop
 	rm -rf $(flags)/*

@@ -1,5 +1,6 @@
 import * as Connext from 'connext';
 import React, { Component } from "react";
+import PropTypes from 'prop-types'; 
 import Button from "@material-ui/core/Button";
 import RemoveRedEye from "@material-ui/icons/RemoveRedEye";
 import Block from "@material-ui/icons/Block";
@@ -7,6 +8,8 @@ import * as eth from 'ethers';
 import {
   withStyles,
   Grid,
+  Select,
+  MenuItem,
   Typography,
   CircularProgress,
   Dialog,
@@ -20,6 +23,7 @@ import Web3 from "web3";
 import { Link } from "react-router-dom";
 import MySnackbar from "./snackBar";
 import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
+import { drizzleConnect } from 'drizzle-react';
 
 const Big = (n) => eth.utils.bigNumberify(n.toString())
 const convertPayment = Connext.convert.Payment
@@ -228,8 +232,8 @@ const PaymentConfirmationDialog = props => (
   </Dialog>
 );
 
-class PayCard extends Component {
-  constructor(props) {
+class StreamViewer extends Component {
+  constructor(props, context) {
     super(props);
 
     this.state = {
@@ -250,13 +254,65 @@ class PayCard extends Component {
       addressError: null,
       balanceError: null,
       paymentState: PaymentStates.None,
-      showReceipt: false
+      showReceipt: false,
+      currentStreamKey: null // Used to store the key corrosponding to the location of the stream data storage in the contract
     };
+
+    // Save the Drizzle contracts to an easily accessible instance variable
+    this.contracts = context.drizzle.contracts;
+    // Only make the cacheCalls if Drizzle has been properly initialized
+    if (props.drizzleStatus.initialized) {
+      this.initialDrizzleCacheCalls(); // Make all of the cacheCalls to get Drizzle data setup for streams contract
+    }
   }
 
-  async componentDidMount() {
+  async componentDidMount() {    
     // Setup interval for continually billing the user while watching the stream
     setInterval(this.chargeTheUserForViewing, (1000 * 60));
+  }
+
+  /*
+   * This function is used to make all of the needed initial calls to setup the streams data via Drizzle
+   */
+  initialDrizzleCacheCalls = async () => {
+    // Make the cacheCall for `size` (represents the length of the stream author addresses array)
+    this.contracts.dTokStreams.methods.size.cacheCall();
+    // Wait until the `size` data has been loaded by the cacheCall
+    await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.size["0x0"] !== undefined));
+    // Store the (now avaliable) `size` data into a variable
+    const size = this.props.dTokStreams.size["0x0"].value;
+    // Iterate over all of the stream author addresses in the addrLookUpTable
+    for (let i = 0; i < size; i++) {
+      // Make the cacheCall for each author address from the `addrLookUpTable` array
+      const authorAddrDataLocation = this.contracts.dTokStreams.methods.addrLookUpTable.cacheCall(i);
+      // Wait until the `addrLookUpTable` entry has been loaded by the cacheCall
+      await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation] !== undefined));
+      // Store the (now avaliable) `addrLookUpTable` entry data into a variable
+      const streamAuthorAddr = this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation];
+      // Make the cacheCall for the stream data corrosponding to the author address from the current loop iteration
+      const streamDataAddr = this.contracts.dTokStreams.methods.streams.cacheCall(streamAuthorAddr.value);
+      // Wait until the `streams` entry has been loaded by the cacheCall
+      await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.streams[streamDataAddr] !== undefined));
+      // Set the first stream processed as the default stream displayed
+      if (i === 0) {
+        // Store the stream (storage location) key to the component's state (for use displaying the streams dropdown)
+        this.setState({ currentStreamKey: streamDataAddr });
+      }
+    }
+  }
+
+  /*
+   * This is a simple stateless helper function that awaits until the provided function returns true.
+   */
+  async waitUntilConditionalFuncTrueHelper(checkConditional) {
+    // Define an async function for sleeping
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Loop until the checkConditional functions results in a true condition
+    while (true) {
+      if (checkConditional()) { break; }
+      await sleep(100); // Sleep for 1/10 of a second
+    }
   }
 
   chargeTheUserForViewing = async () => {
@@ -489,8 +545,13 @@ class PayCard extends Component {
   };
 
   render() {
-    const { connextState, classes } = this.props;
-    const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled } = this.state;
+    const { connextState, classes, dTokStreams } = this.props;
+    const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled, currentStreamKey } = this.state;
+
+    if (Object.keys(dTokStreams.streams).length < 1 || currentStreamKey === null) {
+      return <div>No streams avaliable...</div>;
+    }
+
     return (
       <Grid
         container
@@ -506,6 +567,26 @@ class PayCard extends Component {
           justify: "center"
         }}
       >
+        <Grid item xs={12}>
+          <Select
+            fullWidth
+            value={currentStreamKey}
+            onChange={e => this.setState({ currentStreamKey: e.target.value })}
+            style={{
+              border: "1px solid #3CB8F2",
+              color: "#3CB8F2",
+              textAlign: "center",
+              borderRadius: "4px",
+              height: "45px"
+            }}
+            disableUnderline
+            IconComponent={() => null}
+          >
+            {Object.keys(dTokStreams.streams).map(streamKey => (
+              <MenuItem value={streamKey} key={streamKey}>{dTokStreams.streams[streamKey].value.title}</MenuItem>
+            ))}
+          </Select>
+        </Grid>
         <Grid
           container
           wrap="nowrap"
@@ -646,4 +727,15 @@ class PayCard extends Component {
   }
 }
 
-export default withStyles(styles)(PayCard);
+StreamViewer.contextTypes = {
+  drizzle: PropTypes.object,
+};
+
+const mapStateToProps = state => {
+  return {
+    drizzleStatus: state.drizzleStatus,
+    dTokStreams: state.contracts.dTokStreams
+  }
+}
+
+export default withStyles(styles)(drizzleConnect(StreamViewer, mapStateToProps));
