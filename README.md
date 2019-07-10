@@ -81,13 +81,22 @@ bash ops/logs.sh server
 
 ### Truffle Deployment
 
-All multi-streams data is handled via the [`dTokStreams` contract](/contracts/dTokStreams.sol). To compile the contract with Truffle, simply run (first, ensure that you have Truffle installed via `npm install -g truffle`):
+All multi-streams data is handled via the [`dTokStreams` contract](/contracts/dTokStreams.sol).
+
+To compile the contract with Truffle, simply run (first, ensure that you have Truffle installed via `npm install -g truffle`):
 
 ```
 truffle compile
 ```
 
-To deploy the contract locally, you can run Ganache using: `ganache-cli` (if Ganache isn't installed yet, simply run: `npm install -g ganache-cli`). Once Ganache is running, migrate the contracts using:
+To deploy the contract locally, you can run Ganache using: `ganache-cli` (if Ganache isn't installed yet, simply run: `npm install -g ganache-cli`). Run ganache-cli on network 4447:
+
+```
+ganache-cli -i 4447
+```
+
+
+Once Ganache is running, migrate the contracts using:
 
 ```
 truffle migrate
