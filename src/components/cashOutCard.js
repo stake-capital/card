@@ -1,23 +1,25 @@
-import * as Connext from "connext";
-import { ethers as eth } from "ethers";
-import React, { Component } from "react";
-import Button from "@material-ui/core/Button";
-import UnarchiveIcon from "@material-ui/icons/Unarchive";
-import TextField from "@material-ui/core/TextField";
+import {
+  Button,
+  CircularProgress,
+  Grid,
+  InputAdornment,
+  Modal,
+  TextField,
+  Tooltip,
+  Typography,
+  withStyles,
+} from "@material-ui/core";
+import { Unarchive as UnarchiveIcon } from "@material-ui/icons";
+import { AddressZero, Zero } from "ethers/constants";
+import { arrayify, isHexString } from "ethers/utils";
 import QRIcon from "mdi-material-ui/QrcodeScan";
+import React, { Component } from "react";
+
 import EthIcon from "../assets/Eth.svg";
 import DaiIcon from "../assets/dai.svg";
-import Tooltip from "@material-ui/core/Tooltip";
-import InputAdornment from "@material-ui/core/InputAdornment";
-import Modal from "@material-ui/core/Modal";
-import QRScan from "./qrScan";
-import { withStyles, Grid, Typography, CircularProgress } from "@material-ui/core";
-import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
-import interval from "interval-promise";
-import { hasPendingTransaction } from '../utils/hasOnchainTransaction'
+import { inverse } from "../utils";
 
-const { hasPendingOps } = new Connext.Utils();
-const Big = (n) => eth.utils.bigNumberify(n.toString())
+import { QRScan } from "./qrCode";
 
 const styles = theme => ({
   icon: {
@@ -32,10 +34,10 @@ const styles = theme => ({
     position: "absolute",
     top: "-400px",
     left: "150px",
-    width: theme.spacing.unit * 50,
+    width: theme.spacing(50),
     backgroundColor: theme.palette.background.paper,
     boxShadow: theme.shadows[5],
-    padding: theme.spacing.unit * 4,
+    padding: theme.spacing(4),
     outline: "none"
   }
 });
@@ -43,150 +45,111 @@ const styles = theme => ({
 class CashOutCard extends Component {
   constructor(props) {
     super(props);
-
     this.state = {
-      withdrawalVal: {
-        // withdrawalWeiUser: "0",
-        // tokensToSell: "0",
-        // withdrawalTokenUser: "0",
-        // weiToSell: "0",
-        recipient: "0x0..."
+      recipient: {
+        display: "",
+        value: undefined,
+        error: undefined,
       },
-      addressError: null,
-      balanceError: null,
       scan: false,
-      withdrawEth: true,
-      aggregateBalance: "0.00",
       withdrawing: false
     };
   }
 
-  async updateWithdrawalVals(withdrawEth) {
-    this.setState({ withdrawEth });
-
-    // set the state to contain the proper withdrawal args for
-    // eth or dai withdrawal
-    const { channelState, connextState, exchangeRate } = this.props
-    let { withdrawalVal } = this.state;
-
-    if (withdrawEth && channelState && connextState) {
-      const { custodialBalance } = connextState.persistent
-      const amountToken = Big(channelState.balanceTokenUser).add(custodialBalance.balanceToken)
-      const amountWei = Big(channelState.balanceWeiUser).add(custodialBalance.balanceWei)
-      // withdraw all channel balance in eth
-      withdrawalVal = {
-        ...withdrawalVal,
-        exchangeRate,
-        tokensToSell: amountToken.toString(),
-        withdrawalWeiUser: amountWei.toString(),
-        weiToSell: "0",
-        withdrawalTokenUser: "0"
-      };
-    } else {
-      console.error("Not permitting withdrawal of tokens at this time")
-      return
-    }
-
-    this.setState({ withdrawalVal });
-    return withdrawalVal;
-  }
-
-  // examines if the display value should be updated
-  // when the component is mounting, or when the props change
-
-  // NOTE: the amount to cashout != channel card amount if there is 
-  // wei in the channel
-  async updateDisplayValue() {
-    const { channelState, connextState } = this.props;
-    if (!channelState) {
-      this.setState({ aggregateBalance: "$0.00" });
-      return;
-    }
-
-    this.setState({
-      aggregateBalance: getOwedBalanceInDAI(connextState, false)
-    });
-  }
-
-  // update display value with the exchange rate/
-  // channel balance changes
-  async componentWillReceiveProps() {
-    await this.updateDisplayValue();
-  }
-
-  async componentDidMount() {
-    await this.updateDisplayValue();
-  }
-
   async updateRecipientHandler(value) {
+    let recipient = value
+    let error
     if (value.includes("ethereum:")) {
-      let temp = value.split(":")
-      value = temp[1]
+      recipient = value.split(":")[1]
+    }
+    if (recipient === "") {
+      error = "Please provide an address"
+    } else if (!isHexString(recipient)) {
+      error = `Invalid hex string: ${recipient}`
+    } else if (arrayify(recipient).length !== 20) {
+      error = `Invalid length: ${recipient}`
     }
     this.setState({
-      recipientDisplayVal: value,
+      recipient: {
+        display: value,
+        value: error ? undefined : recipient,
+        error,
+      },
       scan: false
     });
-    await this.setState(oldState => {
-      oldState.withdrawalVal.recipient = value;
-      return oldState;
-    });
   }
 
-  poller = async () => {
-    await interval(
-      async (iteration, stop) => {
-        const { runtime } = this.props
-        if (!hasPendingTransaction(runtime)) {
-          stop()
-        }
-      },
-      1000,
-    )
-    this.setState({ withdrawing: false })
-    this.props.history.push("/")
-  };
+  async withdrawalTokens() {
+    const { balance, channel, history, setPending, swapRate, token } = this.props
+    const recipient = this.state.recipient.value
+    if (!recipient) return
+    const total = balance.channel.total
+    if (total.wad.lte(Zero)) return
 
-  async withdrawalHandler(withdrawEth) {
-    const { connext } = this.props;
-    const withdrawalVal = await this.updateWithdrawalVals(withdrawEth);
-    const recipient = withdrawalVal.recipient.toLowerCase()
-    this.setState({ addressError: null });
-    // check for valid address
-    if (recipient === "0x0...") {
-      this.setState({ addressError: "Please provide an address" });
-      return;
-    }
-    if (!eth.utils.isHexString(recipient)) {
-      this.setState({ addressError: `Invalid hex string: ${recipient}` });
-      return;
-    }
-    if (eth.utils.arrayify(recipient).length !== 20) {
-      this.setState({ addressError: `Invalid length: ${recipient}` });
-      return;
-    }
-    // check the input balance is under channel balance
-    // invoke withdraw modal
+    // Put lock on actions, no more autoswaps until we're done withdrawing
+    setPending({ type: "withdrawal", complete: false, closed: false })
     this.setState({ withdrawing: true });
+    console.log(`Withdrawing ${total.toETH().format()} to: ${recipient}`);
 
-    console.log(`Withdrawing: ${JSON.stringify(withdrawalVal, null, 2)}`);
-    await connext.withdraw(withdrawalVal);
+    const result = await channel.withdraw({
+      amount: balance.channel.token.wad.toString(),
+      assetId: token.address,
+      recipient,
+    });
 
-    this.poller();
+    console.log(`Cashout result: ${JSON.stringify(result)}`)
+    this.setState({ withdrawing: false })
+    setPending({ type: "withdrawal", complete: true, closed: false })
+    history.push("/")
+  }
+
+  async withdrawalEther() {
+    const { balance, channel, history, setPending, swapRate, token } = this.props
+    const recipient = this.state.recipient.value
+    if (!recipient) return
+    const total = balance.channel.total
+    if (total.wad.lte(Zero)) return
+
+    // Put lock on actions, no more autoswaps until we're done withdrawing
+    setPending({ type: "withdrawal", complete: false, closed: false })
+    this.setState({ withdrawing: true });
+    console.log(`Withdrawing ${total.toETH().format()} to: ${recipient}`);
+
+    // swap all in-channel tokens for eth
+    if (balance.channel.token.wad.gt(Zero)) {
+      await channel.addPaymentProfile({
+        amountToCollateralize: total.toETH().wad.toString(),
+        minimumMaintainedCollateral: total.toETH().wad.toString(),
+        tokenAddress: AddressZero,
+      });
+      await channel.requestCollateral(AddressZero);
+      await channel.swap({
+        amount: balance.channel.token.wad.toString(),
+        fromAssetId: token.address,
+        swapRate: inverse(swapRate),
+        toAssetId: AddressZero,
+      });
+      await this.props.refreshBalances()
+    }
+
+    const result = await channel.withdraw({
+      amount: balance.channel.ether.wad.toString(),
+      assetId: AddressZero,
+      recipient,
+    });
+    console.log(`Cashout result: ${JSON.stringify(result)}`)
+    this.setState({ withdrawing: false })
+    setPending({ type: "withdrawal", complete: true, closed: false })
+    history.push("/")
   }
 
   render() {
-    const { classes, exchangeRate, connextState, channelState } = this.props;
-    const {
-      recipientDisplayVal,
-      addressError,
-      scan,
-      aggregateBalance /*, withdrawing*/
-    } = this.state;
+    const { balance, classes, swapRate, history } = this.props;
+    const { recipient, scan, withdrawing } = this.state;
     return (
       <Grid
         container
-        spacing={16}
+        spacing={2}
         direction="column"
         style={{
           paddingLeft: 12,
@@ -197,7 +160,6 @@ class CashOutCard extends Component {
           justifyContent: "center"
         }}
       >
-        {/* <ProgressModalWrapped withdrawing={withdrawing} /> */}
         <Grid
           container
           wrap="nowrap"
@@ -212,13 +174,15 @@ class CashOutCard extends Component {
         <Grid item xs={12}>
           <Grid container direction="row" justify="center" alignItems="center">
             <Typography variant="h2">
-              <span>{aggregateBalance}</span>
+              <span>
+                {balance.channel.total.toDAI().format()}
+              </span>
             </Typography>
           </Grid>
         </Grid>
         <Grid item xs={12}>
           <Typography variant="caption">
-            <span>{"ETH price: $" + exchangeRate}</span>
+            <span>{"ETH price: $" + swapRate}</span>
           </Typography>
         </Grid>
         <Grid item xs={12}>
@@ -227,13 +191,13 @@ class CashOutCard extends Component {
             id="outlined-with-placeholder"
             label="Address"
             placeholder="0x0..."
-            value={recipientDisplayVal || ""}
+            value={recipient.display || ""}
             onChange={evt => this.updateRecipientHandler(evt.target.value)}
             margin="normal"
             variant="outlined"
             required
-            helperText={addressError}
-            error={addressError != null}
+            helperText={recipient.error}
+            error={!!recipient.error}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -275,7 +239,7 @@ class CashOutCard extends Component {
         >
           <QRScan
             handleResult={this.updateRecipientHandler.bind(this)}
-            history={this.props.history}
+            history={history}
           />
         </Modal>
         <Grid item xs={12}>
@@ -290,8 +254,8 @@ class CashOutCard extends Component {
               <Button
                 className={classes.button}
                 fullWidth
-                onClick={() => this.withdrawalHandler(true)}
-                disabled={!connextState || hasPendingOps(channelState)}
+                onClick={() => this.withdrawalEther()}
+                disabled={!recipient.value}
               >
                 Cash Out Eth
                 <img
@@ -306,8 +270,8 @@ class CashOutCard extends Component {
                 className={classes.button}
                 variant="contained"
                 fullWidth
-                onClick={() => this.withdrawalHandler(false)}
-                disabled
+                onClick={() => this.withdrawalTokens()}
+                disabled={!recipient.value}
               >
                 Cash Out Dai
                 <img
@@ -329,12 +293,12 @@ class CashOutCard extends Component {
               width: "15%"
             }}
             size="medium"
-            onClick={() => this.props.history.push("/")}
+            onClick={() => history.push("/")}
           >
             Back
           </Button>
           <Grid item xs={12} style={{paddingTop:"10%"}}>
-            {this.state.withdrawing && <CircularProgress color="primary" />}
+            {withdrawing && <CircularProgress color="primary" />}
           </Grid>
         </Grid>
       </Grid>

@@ -1,13 +1,9 @@
+import { Button, Grid, Tooltip, Typography, withStyles } from "@material-ui/core";
 import React, { Component } from "react";
-import Button from "@material-ui/core/Button";
-import DepositIcon from "@material-ui/icons/AttachMoney";
-import Tooltip from "@material-ui/core/Tooltip";
 import { CopyToClipboard } from "react-copy-to-clipboard";
-import Typography from "@material-ui/core/Typography";
-import Grid from "@material-ui/core/Grid";
-import QRGenerate from "./qrGenerate";
+
+import { QRGenerate } from "./qrCode";
 import MySnackbar from "./snackBar";
-import { withStyles } from "@material-ui/core";
 
 const styles = theme => ({
   icon: {
@@ -19,10 +15,7 @@ const styles = theme => ({
 class DepositCard extends Component {
   constructor(props) {
     super(props);
-
     this.state = {
-      value: "0",
-      error: null,
       copied: false
     };
   }
@@ -32,18 +25,15 @@ class DepositCard extends Component {
   };
 
   render() {
-    const { classes, address, minDeposit, maxDeposit } = this.props;
+    const { address, history, maxDeposit, minDeposit } = this.props;
     const { copied } = this.state;
-
-    
     const minEth = minDeposit ? minDeposit.toETH().format() : '?.??'
     const maxEth = maxDeposit ? maxDeposit.toETH().format() : '?.??'
     const maxDai = maxDeposit ? maxDeposit.toDAI().format() : '?.??'
-
     return (
       <Grid
         container
-        spacing={16}
+        spacing={2}
         direction="column"
         style={{
           paddingLeft: "10%",
@@ -60,28 +50,6 @@ class DepositCard extends Component {
           onClose={() => this.closeModal()}
           message="Copied!"
         />
-        <Grid
-          container
-          wrap="nowrap"
-          direction="row"
-          justify="center"
-          alignItems="center"
-        >
-          <Grid item xs={12}>
-            <DepositIcon className={classes.icon} />
-          </Grid>
-        </Grid>
-        <Grid item xs={12}>
-          <Typography variant="body2">
-            <Tooltip
-              disableFocusListener
-              disableTouchListener
-              title="Because gas"
-            >
-              <span>{`Deposit minimum of: ${minEth || "?.??"}.`}</span>
-            </Tooltip>
-          </Typography>
-        </Grid>
         <Grid item xs={12} margin="1em">
           <QRGenerate value={address} />
         </Grid>
@@ -105,8 +73,20 @@ class DepositCard extends Component {
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">
-            <span>{`Deposits over ${maxEth || "?.??"} Eth 
-                      or ${maxDai || "?.??"} Dai will be refunded`}</span>
+            <span> Send funds to this address to deposit. </span>
+          </Typography>
+          <Typography variant="body2">
+            <Tooltip
+              disableFocusListener
+              disableTouchListener
+              title="Because gas"
+            >
+              <span>{`Deposit minimum of: ${minEth || "?.??"}.`}</span>
+            </Tooltip>
+          </Typography>
+          <Typography variant="body2">
+            <span>{`Up to ${maxEth || "?.??"} Eth 
+                      or ${maxDai || "?.??"} Dai will be deposited into the state channel, any leftovers will be kept on-chain`}</span>
           </Typography>
         </Grid>
         <Grid item xs={12}>
@@ -119,7 +99,7 @@ class DepositCard extends Component {
               width: "15%"
             }}
             size="medium"
-            onClick={() => this.props.history.push("/")}
+            onClick={() => history.push("/")}
           >
             Back
           </Button>

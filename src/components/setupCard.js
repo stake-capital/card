@@ -1,6 +1,5 @@
-import React, { Component } from "react";
-import Grid from "@material-ui/core/Grid";
 import {
+  Grid,
   withStyles,
   DialogTitle,
   DialogContent,
@@ -10,10 +9,11 @@ import {
   Typography,
   DialogContentText,
   LinearProgress,
-  Tooltip
+  Tooltip,
 } from "@material-ui/core";
+import { FileCopy as CopyIcon } from "@material-ui/icons";
+import React, { Component } from "react";
 import { CopyToClipboard } from "react-copy-to-clipboard";
-import CopyIcon from "@material-ui/icons/FileCopy";
 
 const styles = theme => ({
   icon: {
@@ -67,16 +67,16 @@ const screens = (classes, minEth, minDai, maxEth, maxDai) => [
   {
     title: "Deposit Boundaries",
     message: `The card needs a minimum deposit of ${
-      minEth || "?.??"} (${
-      minDai || "?.??"}) to cover the gas costs of getting setup. Cards only accept deposits of ${
-      maxEth || "?.??"} (${
-      maxDai || "?.??"}) or less, with any excess eth getting refunded.`
+      minEth || "?.??"} (${ minDai || "?.??"
+    }) to cover the gas costs of getting setup. Cards only accept deposits of ${
+      maxEth || "?.??"} (${ maxDai || "?.??"
+    }) or less, with any excess eth being kept on-chain & not added to the channel.`
   },
   {
     title: "Depositing Tokens",
     message: `If you want to deposit dai directly, there are no deposit maximums enforced! Just make sure to send at least ${
-      minEth || "?.??"} (${
-      minDai || "?.??"}) for gas to your new wallet.`
+      minEth || "?.??"} (${ minDai || "?.??"
+    }) for gas to your new wallet.`
   }
 ];
 
@@ -112,7 +112,6 @@ class SetupCard extends Component {
   render() {
     const {
       classes,
-      connextState,
       minDeposit,
       maxDeposit
     } = this.props;
@@ -122,8 +121,7 @@ class SetupCard extends Component {
     // max token in DEI, min in wei and DAI
     let minDai, minEth;
     let maxDai, maxEth;
-    if (connextState && minDeposit) {
-
+    if (maxDeposit && minDeposit) {
       minEth = minDeposit.toETH().format()
       minDai = minDeposit.toDAI().format();
       maxEth = maxDeposit.toETH().format()
@@ -139,7 +137,7 @@ class SetupCard extends Component {
     return (
       <Grid
         container
-        spacing={16}
+        spacing={8}
         direction="column"
         style={{
           paddingLeft: "10%",
@@ -148,6 +146,7 @@ class SetupCard extends Component {
           paddingBottom: "10%",
           textAlign: "center"
         }}
+        item={true}
         zeroMinWidth={true}
       >
         {display.length !== 0 && (

@@ -1,65 +1,57 @@
-import "./App.css";
 import { Paper, withStyles, Grid } from "@material-ui/core";
-import { ethers as eth } from "ethers";
+import * as connext from "@connext/client";
+import { Contract, ethers as eth } from "ethers";
+import { AddressZero, Zero } from "ethers/constants";
+import { formatEther, parseEther } from "ethers/utils";
 import interval from "interval-promise";
 import React from "react";
-import { BrowserRouter as Router, Route, Redirect } from "react-router-dom";
-import * as Connext from "connext";
+import { BrowserRouter as Router, Route } from "react-router-dom";
+import tokenArtifacts from "openzeppelin-solidity/build/contracts/ERC20Mintable.json";
+
+import "./App.css";
 
 // Pages
-import Home from "./components/Home";
-import DepositCard from "./components/depositCard";
 import AppBarComponent from "./components/AppBar";
-import SettingsCard from "./components/settingsCard";
-import ReceiveCard from "./components/receiveCard";
-import SendCard from "./components/sendCard";
-import StreamViewer from "./components/streamViewer";
 import CashOutCard from "./components/cashOutCard";
-import SupportCard from "./components/supportCard";
-import RedeemCard from "./components/redeemCard";
-import SetupCard from "./components/setupCard";
 import Confirmations from "./components/Confirmations";
+import DepositCard from "./components/depositCard";
+import Home from "./components/Home";
 import MySnackbar from "./components/snackBar";
-import { drizzleConnect } from 'drizzle-react';
+import RequestCard from "./components/requestCard";
+import RedeemCard from "./components/redeemCard";
+import SendCard from "./components/sendCard";
+import SettingsCard from "./components/settingsCard";
+import SetupCard from "./components/setupCard";
+import SupportCard from "./components/supportCard";
 
-const humanTokenAbi = require("./abi/humanToken.json");
+import { Currency, inverse, store, minBN, toBN, tokenToWei, weiToToken } from "./utils";
 
-const Big = (n) => eth.utils.bigNumberify(n.toString())
-const { getExchangeRates, hasPendingOps } = new Connext.Utils();
-
-let publicUrl;
-
-const env = process.env.NODE_ENV;
-const tokenAbi = humanTokenAbi;
-
-// Optional URL overrides for custom hubs
+// Optional URL overrides for custom urls
+console.log("here it is");
+console.log(process.env.REACT_APP_ETH_URL_OVERRIDE);
 const overrides = {
-  localHub: process.env.REACT_APP_LOCAL_HUB_OVERRIDE,
-  localEth: process.env.REACT_APP_LOCAL_ETH_OVERRIDE,
-  rinkebyHub: process.env.REACT_APP_RINKEBY_HUB_OVERRIDE,
-  rinkebyEth: process.env.REACT_APP_RINKEBY_ETH_OVERRIDE,
-  mainnetHub: process.env.REACT_APP_MAINNET_HUB_OVERRIDE,
-  mainnetEth: process.env.REACT_APP_MAINNET_ETH_OVERRIDE
+  nodeUrl: process.env.REACT_APP_NODE_URL_OVERRIDE,
+  ethUrl: process.env.REACT_APP_ETH_URL_OVERRIDE,
 };
 
 // Constants for channel max/min - this is also enforced on the hub
-const DEPOSIT_ESTIMATED_GAS = Big("700000"); // 700k gas // TODO: estimate this dynamically
-const HUB_EXCHANGE_CEILING = eth.constants.WeiPerEther.mul(Big(69)); // 69 TST
-const CHANNEL_DEPOSIT_MAX = eth.constants.WeiPerEther.mul(Big(30)); // 30 TST
+const WITHDRAW_ESTIMATED_GAS = toBN("300000");
+const DEPOSIT_ESTIMATED_GAS = toBN("25000");
+const MAX_CHANNEL_VALUE = Currency.DAI("30");
 
 const styles = theme => ({
   paper: {
     width: "100%",
-    padding: `0px ${theme.spacing.unit}px 0 ${theme.spacing.unit}px`,
+    padding: `0px ${theme.spacing(1)}px 0 ${theme.spacing(1)}px`,
     [theme.breakpoints.up("sm")]: {
       width: "450px",
-      // height: "650px",
+      height: "650px",
       marginTop: "5%",
-      borderRadius: "4px"
+      borderRadius: "4px",
     },
     [theme.breakpoints.down(600)]: {
-      "box-shadow": "0px 0px"
-    }
+      "box-shadow": "0px 0px",
+    },
   },
   app: {
     display: "flex",
@@ -69,55 +61,48 @@ const styles = theme => ({
     fontFamily: ["proxima-nova", "sans-serif"],
     backgroundColor: "#FFF",
     width: "100%",
-    margin: "0px"
+    margin: "0px",
   },
   zIndex: 1000,
-  grid: {}
+  grid: {},
 });
 
 class App extends React.Component {
   constructor(props) {
     super(props);
+    const swapRate = "314.08";
     this.state = {
-      loadingConnext: true,
-      hubUrl: null,
-      tokenAddress: null,
-      contractAddress: null,
-      hubWalletAddress: null,
-      ethprovider: null,
-      tokenContract: null,
-      connext: null,
-      modals: {
-        settings: false,
-        keyGen: false,
-        receive: false,
-        send: false,
-        cashOut: false,
-        scan: false,
-        deposit: false
-      },
-      authorized: "false",
-      approvalWeiUser: "10000",
-      channelState: null,
-      exchangeRate: "0.00",
-      interval: null,
-      connextState: null,
-      runtime: null,
-      sendScanArgs: {
-        amount: null,
-        recipient: null
-      },
       address: "",
-      status: {
-        txHash: "",
-        type: "",
-        reset: false
+      balance: {
+        channel: {
+          ether: Currency.ETH("0", swapRate),
+          token: Currency.DAI("0", swapRate),
+          total: Currency.ETH("0", swapRate),
+        },
+        onChain: {
+          ether: Currency.ETH("0", swapRate),
+          token: Currency.DAI("0", swapRate),
+          total: Currency.ETH("0", swapRate),
+        },
       },
-      minDeposit: null,
+      ethprovider: null,
+      freeBalanceAddress: null,
+      loadingConnext: true,
       maxDeposit: null,
+      minDeposit: null,
+      pending: { type: "null", complete: true, closed: true },
+      sendScanArgs: { amount: null, recipient: null },
+      swapRate,
+      token: null,
+      xpub: "",
     };
-
-    this.networkHandler = this.networkHandler.bind(this);
+    this.refreshBalances.bind(this);
+    this.setDepositLimits.bind(this);
+    this.autoDeposit.bind(this);
+    this.autoSwap.bind(this);
+    this.setPending.bind(this);
+    this.closeConfirmations.bind(this);
+    this.scanQRCode.bind(this);
   }
 
   // ************************************************* //
@@ -125,301 +110,285 @@ class App extends React.Component {
   // ************************************************* //
 
   async componentDidMount() {
-    // on mount, check if you need to refund by removing maxBalance
-    localStorage.removeItem("refunding");
-
-    // set public url
-    publicUrl = window.location.origin.toLowerCase();
-
-    // Get mnemonic and rpc type
-    let mnemonic = localStorage.getItem("mnemonic");
-    let rpc = localStorage.getItem("rpc-prod");
-
-    // If no rpc, get from env and save to local storage
-    if (!rpc) {
-      rpc = env === "development" ? "LOCALHOST" : "MAINNET";
-      localStorage.setItem("rpc-prod", rpc);
-    }
     // If no mnemonic, create one and save to local storage
+    let mnemonic = localStorage.getItem("mnemonic");
     if (!mnemonic) {
       mnemonic = eth.Wallet.createRandom().mnemonic;
       localStorage.setItem("mnemonic", mnemonic);
     }
 
-    await this.setConnext(rpc, mnemonic);
-    await this.setTokenContract();
-    await this.pollConnextState();
-    await this.setDepositLimits();
-    await this.poller();
-  }
+    const nodeUrl =
+      overrides.nodeUrl || `${window.location.origin.replace(/^http/, "ws")}/api/messaging`;
+    const ethUrl = overrides.ethUrl || `${window.location.origin}/api/ethprovider`;
+    const ethprovider = new eth.providers.JsonRpcProvider(ethUrl);
+    const cfPath = "m/44'/60'/0'/25446";
+    const cfWallet = eth.Wallet.fromMnemonic(mnemonic, cfPath).connect(ethprovider);
 
-  // ************************************************* //
-  //                State setters                      //
-  // ************************************************* //
+    const channel = await connext.connect({
+      ethProviderUrl: ethUrl,
+      logLevel: 5,
+      mnemonic,
+      nodeUrl,
+      store,
+    });
 
-  async networkHandler(rpc) {
-    // called from settingsCard when a new RPC URL is connected
-    // will refresh the page after
-    localStorage.setItem("rpc-prod", rpc);
-    // update refunding variable on rpc switch
-    localStorage.removeItem("maxBalanceAfterRefund");
-    localStorage.removeItem("refunding");
-    window.location.reload();
-    return;
-  }
-
-  async setConnext(rpc, mnemonic) {
-    let hubUrl;
-    let ethprovider;
-    let ethUrl;
-    switch (rpc) {
-      case "LOCALHOST":
-        hubUrl = overrides.localHub || `${publicUrl}/api/local/hub`;
-        ethUrl = overrides.localEth || undefined
-        ethprovider = overrides.localEth
-          ? new eth.providers.JsonRpcProvider(overrides.localEth)
-          : new eth.providers.JsonRpcProvider("http://localhost:8545")
-        break;
-      case "RINKEBY":
-      // TODO: overrides so it works with hub
-        hubUrl = overrides.rinkebyHub || `${publicUrl}/api/rinkeby/hub`;
-        ethUrl = overrides.rinkebyEth || undefined
-        ethprovider = overrides.rinkebyEth
-          ? new eth.providers.JsonRpcProvider(overrides.rinkebyEth)
-          : new eth.getDefaultProvider("rinkeby")
-        break;
-      case "MAINNET":
-        hubUrl = overrides.mainnetHub || `${publicUrl}/api/mainnet/hub`;
-        ethUrl = overrides.mainnetEth || undefined
-        ethprovider = overrides.mainnetEth
-          ? new eth.providers.JsonRpcProvider(overrides.mainnetEth)
-          : new eth.getDefaultProvider()
-        break;
-      default:
-        throw new Error(`Unrecognized rpc: ${rpc}`);
+    const channelAvailable = async () => {
+      const chan = await channel.getChannel();
+      return chan && chan.available;
+    };
+    const interval = 1;
+    while (!(await channelAvailable())) {
+      console.info(`Waiting ${interval} more seconds for channel to be available`);
+      await new Promise(res => setTimeout(() => res(), interval * 1000));
     }
 
-    const opts = {
-      hubUrl,
-      mnemonic,
-      ethUrl,
-    };
-    const connext = await Connext.createClient(opts);
-    const address = await connext.wallet.getAddress();
-    console.log(`Successfully set up connext! Connext config:`);
-    console.log(`  - tokenAddress: ${connext.opts.tokenAddress}`);
-    console.log(`  - hubAddress: ${connext.opts.hubAddress}`);
-    console.log(`  - contractAddress: ${connext.opts.contractAddress}`);
-    console.log(`  - ethChainId: ${connext.opts.ethChainId}`);
-    console.log(`  - public address: ${address}`);
+    const freeBalanceAddress = channel.freeBalanceAddress || channel.myFreeBalanceAddress;
+    const connextConfig = await channel.config();
+    const token = new Contract(connextConfig.contractAddresses.Token, tokenArtifacts.abi, cfWallet);
+    const swapRate = await channel.getLatestSwapRate(AddressZero, token.address);
+    const invSwapRate = inverse(swapRate)
+
+    console.log(`Client created successfully!`);
+    console.log(` - Public Identifier: ${channel.publicIdentifier}`);
+    console.log(` - Account multisig address: ${channel.opts.multisigAddress}`);
+    console.log(` - CF Account address: ${cfWallet.address}`);
+    console.log(` - Free balance address: ${freeBalanceAddress}`);
+    console.log(` - Token address: ${token.address}`);
+    console.log(` - Swap rate: ${swapRate} or ${invSwapRate}`)
+
+    channel.subscribeToSwapRates(AddressZero, token.address, (res) => {
+      if (!res || !res.swapRate) return;
+      console.log(`Got swap rate upate: ${this.state.swapRate} -> ${res.swapRate}`);
+      this.setState({ swapRate: res.swapRate });
+    })
 
     this.setState({
-      connext,
-      tokenAddress: connext.opts.tokenAddress,
-      contractAddress: connext.opts.contractAddress,
-      hubWalletAddress: connext.opts.hubAddress,
-      ethChainId: connext.opts.ethChainId,
-      address,
-      ethprovider
+      address: cfWallet.address,
+      channel,
+      ethprovider,
+      freeBalanceAddress,
+      swapRate,
+      token,
+      wallet: cfWallet,
+      xpub: channel.publicIdentifier,
     });
-  }
 
-  async setTokenContract() {
-    try {
-      let { tokenAddress, ethprovider } = this.state;
-      const tokenContract = new eth.Contract(tokenAddress, tokenAbi, ethprovider);
-      this.setState({ tokenContract });
-    } catch (e) {
-      console.log("Error setting token contract");
-      console.log(e);
-    }
+    await this.startPoller();
+    this.setState({ loadingConnext: false });
   }
 
   // ************************************************* //
   //                    Pollers                        //
   // ************************************************* //
 
-  async pollConnextState() {
-    let connext = this.state.connext;
-    // register connext listeners
-    connext.on("onStateChange", state => {
-      this.setState({
-        channelState: state.persistent.channel,
-        connextState: state,
-        runtime: state.runtime,
-        exchangeRate: state.runtime.exchangeRate ? state.runtime.exchangeRate.rates.DAI : 0
-      });
-      console.log('Connext updated:', state)
-      this.checkStatus();
-    });
-    // start polling
-    await connext.start();
-    this.setState({ loadingConnext: false });
-  }
-
-  async poller() {
+  async startPoller() {
+    await this.refreshBalances();
+    await this.setDepositLimits();
     await this.autoDeposit();
     await this.autoSwap();
-
     interval(async (iteration, stop) => {
+      await this.refreshBalances();
+      await this.setDepositLimits();
       await this.autoDeposit();
-    }, 5000);
-
-    interval(async (iteration, stop) => {
       await this.autoSwap();
-    }, 1000);
+    }, 3000);
+  }
+
+  async refreshBalances() {
+    const { freeBalanceAddress, swapRate, token } = this.state;
+    const { address, balance, channel, ethprovider } = this.state;
+    if (!channel) { return; }
+    const getTotal = (ether, token) => Currency.WEI(ether.wad.add(token.toETH().wad), swapRate);
+    const freeEtherBalance = await channel.getFreeBalance();
+    const freeTokenBalance = await channel.getFreeBalance(token.address);
+    balance.onChain.ether = Currency.WEI(await ethprovider.getBalance(address), swapRate).toETH();
+    balance.onChain.token = Currency.DEI(await token.balanceOf(address), swapRate).toDAI();
+    balance.onChain.total = getTotal(balance.onChain.ether, balance.onChain.token).toETH();
+    balance.channel.ether = Currency.WEI(freeEtherBalance[freeBalanceAddress], swapRate).toETH();
+    balance.channel.token = Currency.DEI(freeTokenBalance[freeBalanceAddress], swapRate).toDAI();
+    balance.channel.total = getTotal(balance.channel.ether, balance.channel.token).toETH();
+    this.setState({ balance });
   }
 
   async setDepositLimits() {
-    const { connextState, ethprovider } = this.state;
-    let gasPrice = await ethprovider.getGasPrice()
-    console.log(`Gas Price: ${gasPrice}`);
-    // default connext multiple is 1.5, leave 2x for safety
-    const totalDepositGasWei = DEPOSIT_ESTIMATED_GAS.mul(Big(2)).mul(gasPrice);
-
-    const minDeposit = Connext.Currency.WEI(totalDepositGasWei, () => getExchangeRates(connextState));
-
-    const maxDeposit = Connext.Currency.DEI(CHANNEL_DEPOSIT_MAX, () => getExchangeRates(connextState));
-
+    const { swapRate, ethprovider } = this.state;
+    let gasPrice = await ethprovider.getGasPrice();
+    let totalDepositGasWei = DEPOSIT_ESTIMATED_GAS.mul(toBN(2)).mul(gasPrice);
+    let totalWithdrawalGasWei = WITHDRAW_ESTIMATED_GAS.mul(gasPrice);
+    const minDeposit = Currency.WEI(totalDepositGasWei.add(totalWithdrawalGasWei), swapRate).toETH();
+    const maxDeposit = MAX_CHANNEL_VALUE.toETH(swapRate); // Or get based on payment profile?
     this.setState({ maxDeposit, minDeposit });
   }
 
   async autoDeposit() {
-    const { address, tokenContract, connextState, tokenAddress, connext, minDeposit, ethprovider } = this.state;
-
-    if (!connext || !minDeposit) return;
-
-    const balance = await ethprovider.getBalance(address);
-
-    let tokenBalance = "0";
-    try {
-      tokenBalance = await tokenContract.balanceOf(address);
-    } catch (e) {
-      console.warn(
-        `Error fetching token balance, are you sure the token address (addr: ${tokenAddress}) is correct for the selected network (id: ${JSON.stringify(
-          await ethprovider.getNetwork()
-        )}))? Error: ${e.message}`
-      );
+    const { balance, channel, minDeposit, maxDeposit, pending, swapRate, token } = this.state;
+    if (!channel || !(await channel.getChannel()).available) {
+      console.warn(`Channel not available yet.`);
+      return;
+    }
+    if (balance.onChain.ether.wad.eq(Zero)) {
+      console.debug(`No on-chain eth to deposit`)
+      return;
+    }
+    if (!pending.complete) {
+      console.log(`An operation of type ${pending.type} is pending, waiting to deposit`)
       return;
     }
 
-    if (balance.gt(eth.constants.Zero) || tokenBalance.gt(eth.constants.Zero)) {
-      const minWei = minDeposit.toWEI().floor()
-      if (balance.lt(minWei)) {
-        // don't autodeposit anything under the threshold
-        // update the refunding variable before returning
-        // We hit this repeatedly after first deposit & we have dust left over
-        // No need to clutter logs w the below
-        // console.log(`Current balance is ${balance.toString()}, less than minBalance of ${minWei.toString()}`);
-        return;
-      }
-      // only proceed with deposit request if you can deposit
-      if (!connextState) {
-        return;
-      }
-      if (
-        // something was submitted
-        connextState.runtime.deposit.submitted ||
-        connextState.runtime.withdrawal.submitted ||
-        connextState.runtime.collateral.submitted
-      ) {
-        console.log(`Deposit or withdrawal transaction in progress, will not auto-deposit`);
-        return;
-      }
-
-      let channelDeposit = {
-        amountWei: balance.sub(minWei),
-        amountToken: tokenBalance
-      };
-
-      if (channelDeposit.amountWei.eq(eth.constants.Zero) && channelDeposit.amountToken.eq(eth.constants.Zero)) {
-        return;
-      }
-
-      await this.state.connext.deposit({ 
-        amountWei: channelDeposit.amountWei.toString(), 
-        amountToken: channelDeposit.amountToken.toString() 
-      });
+    let nowMaxDeposit = maxDeposit.wad.sub(this.state.balance.channel.total.wad);
+    if (nowMaxDeposit.lte(Zero)) {
+      console.debug(`Channel balance (${balance.channel.total.toDAI().format()}) is at or above ` +
+        `cap of ${maxDeposit.toDAI(swapRate).format()}`)
+      return;
     }
+
+    if (balance.onChain.token.wad.gt(Zero)) {
+      const amount = minBN([
+        Currency.WEI(nowMaxDeposit, swapRate).toDAI().wad,
+        balance.onChain.token.wad
+      ]);
+      const depositParams = {
+        amount: amount.toString(),
+        assetId: token.address.toLowerCase(),
+      };
+      const channelState = JSON.stringify(await channel.getChannel(), null, 2);
+      console.log(`Depositing ${depositParams.amount} tokens into channel: ${channelState}`);
+      this.setPending({ type: "deposit", complete: false, closed: false });
+      const result = await channel.deposit(depositParams);
+      this.setPending({ type: "deposit", complete: true, closed: false });
+      await this.refreshBalances();
+      console.log(`Successfully deposited tokens! Result: ${JSON.stringify(result, null, 2)}`);
+    } else {
+      console.debug(`No tokens to deposit`);
+    }
+
+    nowMaxDeposit = maxDeposit.wad.sub(this.state.balance.channel.total.wad);
+    if (nowMaxDeposit.lte(Zero)) {
+      console.debug(`Channel balance (${balance.channel.total.toDAI().format()}) is at or above ` +
+        `cap of ${maxDeposit.toDAI(swapRate).format()}`)
+      return;
+    }
+    if (balance.onChain.ether.wad.lt(minDeposit.wad)) {
+      console.debug(`Not enough on-chain eth to deposit: ${balance.onChain.ether.toETH().format()}`)
+      return;
+    }
+
+    const amount = minBN([
+      balance.onChain.ether.wad.sub(minDeposit.wad),
+      nowMaxDeposit,
+    ]);
+    const channelState = JSON.stringify(await channel.getChannel(), null, 2);
+    console.log(`Depositing ${amount} wei into channel: ${channelState}`);
+    this.setPending({ type: "deposit", complete: false, closed: false });
+    const result = await channel.deposit({ amount: amount.toString() });
+    this.setPending({ type: "deposit", complete: true, closed: false });
+    console.log(`Successfully deposited ether! Result: ${JSON.stringify(result, null, 2)}`);
   }
 
   async autoSwap() {
-    const { channelState, connextState } = this.state;
-    if (!connextState || hasPendingOps(channelState)) {
+    const { balance, channel, maxDeposit, pending, swapRate, token } = this.state;
+    if (!channel || !(await channel.getChannel()).available) {
+      console.warn(`Channel not available yet.`);
       return;
     }
-    const weiBalance = Big(channelState.balanceWeiUser);
-    const tokenBalance = Big(channelState.balanceTokenUser);
-    if (channelState && weiBalance.gt(Big("0")) && tokenBalance.lte(HUB_EXCHANGE_CEILING)) {
-      await this.state.connext.exchange(channelState.balanceWeiUser, "wei");
+    if (balance.channel.ether.wad.eq(Zero)) {
+      console.debug(`No in-channel eth available to swap`)
+      return;
     }
+    if (balance.channel.token.wad.gte(maxDeposit.toDAI(swapRate).wad)) {
+      return; // swap ceiling has been reached, no need to swap more
+    }
+    if (!pending.complete) {
+      console.log(`An operation of type ${pending.type} is pending, waiting to swap`)
+      return;
+    }
+    const maxSwap = tokenToWei(maxDeposit.toDAI().wad.sub(balance.channel.token.wad), swapRate)
+    const weiToSwap = minBN([balance.channel.ether.wad, maxSwap])
+    const hubFBAddress = connext.utils.freeBalanceAddressFromXpub(channel.nodePublicIdentifier)
+    const collateralNeeded = balance.channel.token.wad.add(weiToToken(weiToSwap, swapRate));
+    let collateral = formatEther((await channel.getFreeBalance(token.address))[hubFBAddress])
+
+    console.log(`Collateral: ${collateral} tokens, ${formatEther(collateralNeeded)} needed`);
+    if (collateralNeeded.gt(parseEther(collateral))) {
+      console.log(`Requesting more collateral...`)
+      await channel.addPaymentProfile({
+        amountToCollateralize: collateralNeeded.add(parseEther("10")), // add a buffer of $10 so you dont collateralize on every payment
+        minimumMaintainedCollateral: collateralNeeded,
+        assetId: token.address,
+      });
+      await channel.requestCollateral(token.address);
+      collateral = formatEther((await channel.getFreeBalance(token.address))[hubFBAddress])
+      console.log(`Collateral: ${collateral} tokens, ${formatEther(collateralNeeded)} needed`);
+      return;
+    }
+
+    console.log(`Attempting to swap ${formatEther(weiToSwap)} eth for dai at rate: ${swapRate}`);
+    this.setPending({ type: "swap", complete: false, closed: false });
+    await channel.swap({
+      amount: weiToSwap.toString(),
+      fromAssetId: AddressZero,
+      swapRate,
+      toAssetId: token.address,
+    });
+    this.setPending({ type: "swap", complete: true, closed: false });
   }
 
-  async checkStatus() {
-    const { runtime, status } = this.state;
-    let log = () => {};
-    let newStatus = {
-      reset: status.reset
-    };
-
-    if (runtime) {
-      log(`Hub Sync results: ${JSON.stringify(runtime.syncResultsFromHub[0], null, 2)}`);
-      if (runtime.deposit.submitted) {
-        if (!runtime.deposit.detected) {
-          newStatus.type = "DEPOSIT_PENDING";
-        } else {
-          newStatus.type = "DEPOSIT_SUCCESS";
-          newStatus.txHash = runtime.deposit.transactionHash;
-        }
-      }
-      if (runtime.withdrawal.submitted) {
-        if (!runtime.withdrawal.detected) {
-          newStatus.type = "WITHDRAWAL_PENDING";
-        } else {
-          newStatus.type = "WITHDRAWAL_SUCCESS";
-          newStatus.txHash = runtime.withdrawal.transactionHash;
-        }
-      }
-    }
-
-    if (newStatus.type !== status.type) {
-      newStatus.reset = true;
-      console.log(`New channel status! ${JSON.stringify(newStatus)}`);
-    }
-
-    this.setState({ status: newStatus });
+  setPending(pending) {
+    this.setState({ pending });
   }
 
   closeConfirmations() {
-    const { status } = this.state;
-    this.setState({ status: { ...status, reset: false }})
+    const { pending } = this.state;
+    this.setState({ pending: { ...pending, closed: true } });
   }
 
   // ************************************************* //
   //                    Handlers                       //
   // ************************************************* //
 
-  updateApprovalHandler(evt) {
-    this.setState({
-      approvalWeiUser: evt.target.value
-    });
-  }
-
-  async scanURL(path, args) {
+  async scanQRCode(data) {
+    // potential URLs to scan and their params
+    const urls = {
+      "/send?": ["recipient", "amount"],
+      "/redeem?": ["secret", "amountToken"],
+    };
+    let args = {};
+    let path = null;
+    for (let [url, fields] of Object.entries(urls)) {
+      const strArr = data.split(url);
+      if (strArr.length === 1) {
+        // incorrect entry
+        continue;
+      }
+      if (strArr[0] !== window.location.origin) {
+        throw new Error("incorrect site");
+      }
+      // add the chosen url to the path scanned
+      path = url + strArr[1];
+      // get the args
+      const params = strArr[1].split("&");
+      fields.forEach((field, i) => {
+        args[field] = params[i].split("=")[1];
+      });
+    }
+    if (args === {}) {
+      console.log("could not detect params");
+    }
     switch (path) {
       case "/send":
         this.setState({
-          sendScanArgs: { ...args }
+          sendScanArgs: { ...args },
         });
         break;
       case "/redeem":
         this.setState({
-          redeemScanArgs: { ...args }
+          redeemScanArgs: { ...args },
         });
         break;
       default:
-        return;
+        break;
     }
+    return path;
   }
 
   async closeModal() {
@@ -429,22 +398,21 @@ class App extends React.Component {
   render() {
     const {
       address,
-      channelState,
-      sendScanArgs,
-      exchangeRate,
-      connext,
-      connextState,
-      runtime,
+      balance,
+      channel,
+      swapRate,
       maxDeposit,
       minDeposit,
-      ethprovider,
-      status
+      pending,
+      sendScanArgs,
+      token,
+      xpub,
     } = this.state;
-    const { classes, drizzleStatus } = this.props;
+    const { classes } = this.props;
     return (
       <Router>
         <Grid className={classes.app}>
-          <Paper elevation={1} className={classes.paper}>
+          <Paper elevation={1} className={classes.paper} style={{height: "auto"}}>
             <MySnackbar
               variant="warning"
               openWhen={this.state.loadingConnext}
@@ -452,34 +420,24 @@ class App extends React.Component {
               message="Starting Channel Controllers.."
               duration={30000}
             />
-            <Confirmations status={status} closeConfirmations={this.closeConfirmations.bind(this)} />
             <AppBarComponent address={address} />
             <Route
               exact
               path="/"
-              render={props =>
-                runtime && runtime.channelStatus !== "CS_OPEN" ? (
-                  <Redirect to="/support" />
-                ) : (
-                  <Grid>
-                    <Home
-                      {...props}
-                      address={address}
-                      connextState={connextState}
-                      channelState={channelState}
-                      publicUrl={publicUrl}
-                      scanURL={this.scanURL.bind(this)}
-                    />
-
-                    <SetupCard
-                      {...props}
-                      minDeposit={minDeposit}
-                      maxDeposit={maxDeposit}
-                      connextState={connextState}
-                    />
-                  </Grid>
-                )
-              }
+              render={props => (
+                <Grid>
+                  <Home
+                    {...props}
+                    balance={balance}
+                    scanQRCodee={this.scanQRCode.bind(this)}
+                  />
+                  <SetupCard
+                    {...props}
+                    minDeposit={minDeposit}
+                    maxDeposit={maxDeposit}
+                  />
+                </Grid>
+              )}
             />
             <Route
               path="/deposit"
@@ -489,74 +447,40 @@ class App extends React.Component {
                   address={address}
                   maxDeposit={maxDeposit}
                   minDeposit={minDeposit}
-                  exchangeRate={exchangeRate}
-                  connextState={connextState}
                 />
               )}
             />
+            <Route path="/settings" render={props => <SettingsCard {...props} />} />
             <Route
-              path="/settings"
-              render={props => (
-                <SettingsCard
-                  {...props}
-                  networkHandler={this.networkHandler}
-                  connext={connext}
-                  address={address}
-                  exchangeRate={exchangeRate}
-                  runtime={this.state.runtime}
-                />
-              )}
-            />
-            <Route
-              path="/receive"
-              render={props => (
-                <ReceiveCard
-                  {...props}
-                  address={address}
-                  connextState={connextState}
-                  maxDeposit={maxDeposit}
-                  channelState={channelState}
-                  publicUrl={publicUrl}
-                />
-              )}
+              path="/request"
+              render={props => <RequestCard
+                {...props}
+                xpub={xpub}
+                maxDeposit={maxDeposit}
+              />}
             />
             <Route
               path="/send"
               render={props => (
                 <SendCard
                   {...props}
-                  web3={ethprovider}
-                  connext={connext}
-                  address={address}
-                  channelState={channelState}
-                  publicUrl={publicUrl}
+                  balance={balance}
+                  channel={channel}
                   scanArgs={sendScanArgs}
-                  connextState={connextState}
+                  token={token}
                 />
-              )}
-            />
-            <Route
-              path="/viewstream"
-              render={props => (
-                drizzleStatus.initialized ?
-                  <StreamViewer
-                    {...props}
-                    web3={ethprovider}
-                    connext={connext}
-                    address={address}
-                    channelState={channelState}
-                    publicUrl={publicUrl}
-                    scanArgs={sendScanArgs}
-                    connextState={connextState}
-                  />
-                :
-                  <div>Loading...</div>
               )}
             />
             <Route
               path="/redeem"
               render={props => (
-                <RedeemCard {...props} publicUrl={publicUrl} connext={connext} channelState={channelState} connextState={connextState} />
+                <RedeemCard
+                  {...props}
+                  balance={balance}
+                  channel={channel}
+                  pending={pending}
+                  token={token}
+                />
               )}
             />
             <Route
@@ -564,17 +488,28 @@ class App extends React.Component {
               render={props => (
                 <CashOutCard
                   {...props}
-                  address={address}
-                  channelState={channelState}
-                  publicUrl={publicUrl}
-                  exchangeRate={exchangeRate}
-                  connext={connext}
-                  connextState={connextState}
-                  runtime={runtime}
+                  balance={balance}
+                  channel={channel}
+                  swapRate={swapRate}
+                  setPending={this.setPending.bind(this)}
+                  refreshBalances={this.refreshBalances.bind(this)}
+                  token={token}
                 />
               )}
             />
-            <Route path="/support" render={props => <SupportCard {...props} channelState={channelState} />} />
+            <Route
+              path="/support"
+              render={props => (
+                <SupportCard
+                  {...props}
+                  channel={channel}
+                />
+              )}
+            />
+            <Confirmations
+              pending={pending}
+              closeConfirmations={this.closeConfirmations.bind(this)}
+            />
           </Paper>
         </Grid>
       </Router>
@@ -582,10 +517,4 @@ class App extends React.Component {
   }
 }
 
-const mapStateToProps = state => {
-  return {
-    drizzleStatus: state.drizzleStatus
-  }
-}
-
-export default withStyles(styles)(drizzleConnect(App, mapStateToProps));
+export default withStyles(styles)(App);

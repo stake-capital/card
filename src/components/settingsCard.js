@@ -1,28 +1,27 @@
-import React, { Component } from "react";
 import {
   Button,
-  Grid,
-  Select,
-  MenuItem,
-  Typography,
-  Tooltip,
-  TextField,
-  InputAdornment,
-  withStyles,
   CircularProgress,
   Dialog,
-  DialogTitle,
+  DialogActions,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogTitle,
+  Grid,
+  InputAdornment,
+  TextField,
+  Tooltip,
+  Typography,
+  withStyles,
 } from "@material-ui/core";
+import {
+  ArrowRight as SubmitIcon,
+  FileCopy as CopyIcon,
+  Settings as SettingsIcon,
+} from "@material-ui/icons";
+import React, { Component } from "react";
 import { CopyToClipboard } from "react-copy-to-clipboard";
-import CopyIcon from "@material-ui/icons/FileCopy";
-import SubmitIcon from "@material-ui/icons/ArrowRight";
-import SettingsIcon from "@material-ui/icons/Settings";
+
 import MySnackbar from "./snackBar";
-import interval from "interval-promise";
-const queryString = require("query-string");
 
 const styles = {
   card: {
@@ -50,84 +49,29 @@ const styles = {
 class SettingsCard extends Component {
   constructor(props) {
     super(props);
-
     this.state = {
-      showRecovery: false,
-      inputRecovery: false,
-      rpc: localStorage.getItem("rpc-prod"),
-      mnemonic: '',
       copied: false,
+      inputRecovery: false,
+      isBurning: false,
+      mnemonic: '',
+      showRecovery: false,
       showWarning: false
     };
   }
 
-  async componentDidMount() {
-    // For requests that subscribe to this format:
-    //    http://localhost/settings?mnemonic=toilet%20civil%20kite%20grass%20little%20slogan%20critic%20whale%20guilt%20risk%20banner%20quarter
-    // The mnemonic is parsed out:
-    //    toilet civil kite grass little slogan critic whale guilt risk banner quarter
-    // And then saved to local storage.
-    
-    const { location } = this.props;
-    const query = queryString.parse(location.search);
-    if (query.mnemonic) { // TODO: UX may be improved by checking if the parsed mnemonic looks properly formed
-      // Set the mnemonic parsed from the query string to the state
-      await this.setState({ mnemonic: query.mnemonic });
-      // Call the mnemonic recovery function
-      this.recoverAddressFromMnemonic();
-    }
-  }
-
-  closeModal = async () => {
-    await this.setState({ copied: false });
+  closeModal() {
+    this.setState({ copied: false });
   };
 
-  generateNewAddress = async () => {
+  generateNewAddress() {
     this.setState({ isBurning: true });
-    try {
-      await this.props.connext.withdraw({
-        withdrawalWeiUser: "0",
-        tokensToSell: "0",
-        withdrawalTokenUser: "0",
-        weiToSell: "0",
-        recipient: this.props.address,
-        exchangeRate: this.props.exchangeRate
-      });
-    } catch (e) {
-      console.log("Error withdrawing, creating new address anyway", e.message);
-    } finally {
-      localStorage.removeItem("mnemonic");
-      this.burnRefreshPoller();
-    }
-  };
-
-  burnRefreshPoller = async () => {
-    await interval(
-      async (iteration, stop) => {
-        const { runtime } = this.props
-          if (!runtime.awaitingOnchainTransaction) {
-            stop()
-          }
-      },
-      1000,
-      { iterations: 50 }
-    );
-    
-    // Then refresh the page
-    this.props.history.push("/");
+    // TODO: withdraw channel balance first? Decollateralize?
+    localStorage.removeItem("mnemonic");
     window.location.reload();
   };
 
-  async recoverAddressFromMnemonic() {
+  recoverAddressFromMnemonic() {
     localStorage.setItem("mnemonic", this.state.mnemonic);
-    // Redirect the user to the main page
-    window.location.href = "/";
-  }
-
-  async updateRPC(event) {
-    const rpc = event.target.value;
-    this.setState({ rpc });
-    await this.props.networkHandler(rpc);
     window.location.reload();
   }
 
@@ -137,7 +81,7 @@ class SettingsCard extends Component {
     return (
       <Grid
         container
-        spacing={16}
+        spacing={2}
         direction="column"
         style={{
           paddingLeft: 12,
@@ -156,30 +100,6 @@ class SettingsCard extends Component {
         />
         <Grid item xs={12} style={{ justifyContent: "center" }}>
           <SettingsIcon className={classes.icon} />
-        </Grid>
-        <Grid item xs={12}>
-          <Select
-            fullWidth
-            value={this.state.rpc}
-            onChange={event => this.updateRPC(event)}
-            style={{
-              border: "1px solid #3CB8F2",
-              color: "#3CB8F2",
-              textAlign: "center",
-              borderRadius: "4px",
-              height: "45px"
-            }}
-            disableUnderline
-            IconComponent={() => null}
-          >
-            <MenuItem value={"MAINNET"}>MAINNET</MenuItem>
-            <MenuItem value={"RINKEBY"}>RINKEBY</MenuItem>
-            {
-              process.env.NODE_ENV === "development"
-              ? <MenuItem value={"LOCALHOST"}>LOCALHOST</MenuItem>
-              : null
-            }
-          </Select>
         </Grid>
         <Grid item xs={12} className={classes.button}>
           <Button
