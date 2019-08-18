@@ -81,7 +81,7 @@ class Home extends React.Component {
               variant="contained"
               size="large"
               component={Link}
-              to="/cashout"
+              to="/viewstream"
               style={{
                 color: "#FFF",
                 backgroundColor: "#FCA311"

@@ -20,15 +20,15 @@ import MySnackbar from "./components/snackBar";
 import RequestCard from "./components/requestCard";
 import RedeemCard from "./components/redeemCard";
 import SendCard from "./components/sendCard";
+import StreamViewer from "./components/streamViewer";
 import SettingsCard from "./components/settingsCard";
 import SetupCard from "./components/setupCard";
 import SupportCard from "./components/supportCard";
+import { drizzleConnect } from 'drizzle-react';
 
 import { Currency, inverse, store, minBN, toBN, tokenToWei, weiToToken } from "./utils";
 
 // Optional URL overrides for custom urls
-console.log("here it is");
-console.log(process.env.REACT_APP_ETH_URL_OVERRIDE);
 const overrides = {
   nodeUrl: process.env.REACT_APP_NODE_URL_OVERRIDE,
   ethUrl: process.env.REACT_APP_ETH_URL_OVERRIDE,
@@ -408,7 +408,7 @@ class App extends React.Component {
       token,
       xpub,
     } = this.state;
-    const { classes } = this.props;
+    const { classes, drizzleStatus } = this.props;
     return (
       <Router>
         <Grid className={classes.app}>
@@ -472,6 +472,21 @@ class App extends React.Component {
               )}
             />
             <Route
+              path="/viewstream"
+              render={props => (
+                drizzleStatus.initialized ?
+                  <StreamViewer
+                    {...props}
+                    balance={balance}
+                    channel={channel}
+                    scanArgs={sendScanArgs}
+                    token={token}
+                  />
+                :
+                  <div>Loading...</div>
+              )}
+            />
+            <Route
               path="/redeem"
               render={props => (
                 <RedeemCard
@@ -517,4 +532,12 @@ class App extends React.Component {
   }
 }
 
-export default withStyles(styles)(App);
+const mapStateToProps = state => {
+  console.log("&&&&&");
+  console.log(state);
+  return {
+    drizzleStatus: state.drizzleStatus
+  }
+}
+
+export default withStyles(styles)(drizzleConnect(App, mapStateToProps));
