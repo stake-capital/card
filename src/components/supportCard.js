@@ -1,8 +1,5 @@
+import { Button, Grid, Typography, withStyles } from "@material-ui/core";
 import React, { Component } from "react";
-import Button from "@material-ui/core/Button";
-import Typography from "@material-ui/core/Typography";
-import Grid from "@material-ui/core/Grid";
-import { withStyles } from "@material-ui/core";
 
 const styles = theme => ({
   icon: {
@@ -11,13 +8,33 @@ const styles = theme => ({
   }
 });
 
+function channelRender(channelState) {
+  return Object.entries(channelState).map(([key, value], i) => {
+    return (
+      <div>
+        <span>
+          {key}: {value}{" "}
+        </span>
+      </div>
+    );
+  });
+}
+
 class SupportCard extends Component {
   constructor(props) {
     super(props);
 
     this.state = {
-      error: null
+      error: null,
+      channelState: null,
     };
+  }
+
+
+  async componentDidMount() {
+    this.setState({
+      channelState: await this.props.channel.getChannel(),
+    });
   }
 
   openDiscord = () => {
@@ -27,7 +44,7 @@ class SupportCard extends Component {
   };
 
   render() {
-    const { channelState } = this.props;
+    const { channelState } = this.state;
 
     const exitableState =
       channelState &&
@@ -39,7 +56,7 @@ class SupportCard extends Component {
     return (
       <Grid
         container
-        spacing={16}
+        spacing={8}
         direction="column"
         style={{
           paddingLeft: "5%",
@@ -100,15 +117,3 @@ class SupportCard extends Component {
 }
 
 export default withStyles(styles)(SupportCard);
-
-function channelRender(channelState) {
-  return Object.entries(channelState).map(([key, value], i) => {
-    return (
-      <div>
-        <span>
-          {key}: {value}{" "}
-        </span>
-      </div>
-    );
-  });
-}

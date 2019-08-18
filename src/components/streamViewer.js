@@ -1,35 +1,39 @@
-import * as Connext from 'connext';
-import React, { Component } from "react";
-import PropTypes from 'prop-types'; 
-import Button from "@material-ui/core/Button";
-import RemoveRedEye from "@material-ui/icons/RemoveRedEye";
-import Block from "@material-ui/icons/Block";
-import * as eth from 'ethers';
 import {
-  withStyles,
-  Grid,
-  Select,
-  MenuItem,
-  Typography,
+  Button,
   CircularProgress,
   Dialog,
-  DialogTitle,
+  DialogActions,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogTitle,
+  Grid,
+  InputAdornment,
+  Modal,
+  TextField,
+  Tooltip,
+  Typography,
+  withStyles,
 } from "@material-ui/core";
-import interval from "interval-promise";
-import Web3 from "web3";
-import { Link } from "react-router-dom";
-import MySnackbar from "./snackBar";
-import { getOwedBalanceInDAI } from "../utils/currencyFormatting";
-import { drizzleConnect } from 'drizzle-react';
+import { Send as SendIcon, Link as LinkIcon } from "@material-ui/icons";
+import { Zero } from 'ethers/constants';
+import QRIcon from "mdi-material-ui/QrcodeScan";
+import React, { Component } from "react";
+import queryString from "query-string";
 
-const Big = (n) => eth.utils.bigNumberify(n.toString())
-const convertPayment = Connext.convert.Payment
-const emptyAddress = eth.constants.AddressZero
+import { Currency, toBN, toWei } from "../utils";
+
+import { QRScan } from "./qrCode";
+
+const LINK_LIMIT = Currency.DAI("10") // $10 capped linked payments
 
 const styles = theme => ({
+  icon: {
+    width: "40px",
+    height: "40px"
+  },
+  input: {
+    width: "100%"
+  },
   button: {
     backgroundColor: "#FCA311",
     color: "#FFF"
@@ -40,33 +44,6 @@ const styles = theme => ({
     maxWidth: "442px",
     maxHeight: "248.6px"
   },
-  streamBlocker: {
-    width: "calc(100vw - 24px)",
-    height: "calc(46vw - 13.5px)",
-    maxWidth: "442px",
-    maxHeight: "248.6px",
-    backgroundColor: "#CCCC",
-    textAlign: "center",
-    position: "relative"
-  },
-  streamBlockerTextSpacer: {
-    height: "calc(23vw - 6.75px)",
-    maxHeight: "124.3px"
-  },
-  streamBlockerText: {
-    paddingLeft: "10%",
-    paddingRight: "10%",
-    display: "table",
-    position: "absolute",
-    top: "0",
-    left: "0",
-    height: "100%",
-    width: "80%"
-  },
-  streamBlockerTextInner: {
-    display: "table-cell",
-    verticalAlign: "middle"
-  }
 });
 
 const PaymentStates = {
@@ -77,466 +54,129 @@ const PaymentStates = {
   Success: 4
 };
 
-// possible returns of requesting collateral
-// payment succeeded
-// monitoring requests timed out, still no collateral
-// appropriately collateralized
-const CollateralStates = {
-  PaymentMade: 0,
-  Timeout: 1,
-  Success: 2
-};
-
-function ConfirmationDialogText(paymentState, amountToken, recipient) {
-  switch (paymentState) {
-    case PaymentStates.Collateralizing:
-      return (
-        <Grid>
-          <DialogTitle disableTypography>
-            <Typography variant="h5" color="primary">
-              Payment In Progress
-            </Typography>
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
-              Recipient's Card is being set up. This should take 20-30 seconds.
-            </DialogContentText>
-            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
-              If you stay on this page, your payment will be retried automatically. 
-              If you navigate away or refresh the page, you will have to attempt the payment again yourself.
-            </DialogContentText>
-          <CircularProgress style={{ marginTop: "1em" }} />
-          </DialogContent>
-        </Grid>
-      );
-    case PaymentStates.CollateralTimeout:
-      return (
-        <Grid>
-          <DialogTitle disableTypography>
-            <Typography variant="h5" style={{ color: "#F22424" }}>
-            Payment Failed
-            </Typography>
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
-            After some time, recipient channel could not be initialized.
-            </DialogContentText>
-            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
-            Is the receiver online to set up their Card? Please try your payment again later. If
-              you have any questions, please contact support. (Settings -->
-              Support)
-            </DialogContentText>
-          </DialogContent>
-        </Grid>
-      );
-    case PaymentStates.OtherError:
-      return (
-        <Grid>
-          <DialogTitle disableTypography>
-            <Typography variant="h5" style={{ color: "#F22424" }}>
-            Payment Failed
-            </Typography>
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
-            An unknown error occured when making your payment.
-            </DialogContentText>
-            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
-            Please try again in 30s and contact support if you continue to
-              experience issues. (Settings --> Support)
-            </DialogContentText>
-          </DialogContent>
-        </Grid>
-      );
-    case PaymentStates.Success:
-      return (
-        <Grid>
-          <DialogTitle disableTypography>
-            <Typography variant="h5" style={{ color: "#009247" }}>
-            Payment Success!
-            </Typography>
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
-            Amount: ${amountToken}
-            </DialogContentText>
-            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
-            To: {recipient.substr(0, 5)}...
-            </DialogContentText>
-          </DialogContent>
-        </Grid>
-      );
-    case PaymentStates.None:
-    default:
-      return <div />;
-  }
-}
-
-const PaymentConfirmationDialog = props => (
-  <Dialog
-    open={props.showReceipt}
-    onBackdropClick={
-      props.paymentState === PaymentStates.Collateralizing
-        ? null
-        : () => props.closeModal()
-    }
-    fullWidth
-    style={{
-      justifyContent: "center",
-      alignItems: "center",
-      textAlign: "center",
-    }}
-  >
-    <Grid
-      container
-      style={{
-        backgroundColor: "#FFF",
-        paddingTop: "10%",
-        paddingBottom: "10%"
-      }}
-      justify="center"
-    >
-      {ConfirmationDialogText(
-        props.paymentState,
-        props.amountToken,
-        props.recipient
-      )}
-      {props.paymentState === PaymentStates.Collateralizing ? (
-        <></>
-      ) : (
-        <DialogActions>
-          <Button
-            color="primary"
-            variant="outlined"
-            size="medium"
-            onClick={() => props.closeModal()}
-          >
-            Pay Again
-          </Button>
-          <Button
-            style={{
-              background: "#FFF",
-              border: "1px solid #F22424",
-              color: "#F22424",
-              marginLeft: "5%"
-            }}
-            variant="outlined"
-            size="medium"
-            onClick={() => props.history.push("/")}
-          >
-            Home
-          </Button>
-        </DialogActions>
-      )}
-    </Grid>
-  </Dialog>
-);
-
 class StreamViewer extends Component {
-  constructor(props, context) {
+  constructor(props) {
     super(props);
-
     this.state = {
-      streamViewingEnabled: false,
-      paymentVal: {
-        meta: {
-          purchaseId: "payment"
-          // memo: "",
-        },
-        payments: [
-          {
-            recipient: "",
-            amountToken: "0",
-            amountWei: "0",
-          }
-        ]
-      },
-      addressError: null,
-      balanceError: null,
-      paymentState: PaymentStates.None,
+      amount: { display: "", error: null, value: null },
+      recipient: { display: "", error: null, value: null },
+      sendError: null,
+      scan: false,
       showReceipt: false,
-      currentStreamKey: null // Used to store the key corrosponding to the location of the stream data storage in the contract
+      paymentState: PaymentStates.None,
     };
+  }
 
-    // Save the Drizzle contracts to an easily accessible instance variable
-    this.contracts = context.drizzle.contracts;
-    // Only make the cacheCalls if Drizzle has been properly initialized
-    if (props.drizzleStatus.initialized) {
-      this.initialDrizzleCacheCalls(); // Make all of the cacheCalls to get Drizzle data setup for streams contract
+  async componentDidMount() {
+    const query = queryString.parse(this.props.location.search);
+    if (query.amountToken) { this.updateAmountHandler(query.amountToken) }
+    if (query.recipient) { this.updateRecipientHandler(query.recipient) }
+  }
+
+  handleQRData = async scanResult => {
+    let data = scanResult.split("/send?");
+    if (data[0] === window.location.origin) {
+      const query = queryString.parse(data[1]);
+      if (query.amountToken) { this.updateAmountHandler(query.amountToken) }
+      if (query.recipient) { this.updateRecipientHandler(query.recipient) }
+    } else {
+      console.warn(`QR Code was generated by incorrect site: ${data[0]}`);
     }
-  }
+    this.setState({ scan: false });
+  };
 
-  async componentDidMount() {    
-    // Setup interval for continually billing the user while watching the stream
-    setInterval(this.chargeTheUserForViewing, (1000 * 60));
-  }
-
-  /*
-   * This function is used to make all of the needed initial calls to setup the streams data via Drizzle
-   */
-  initialDrizzleCacheCalls = async () => {
-    // Make the cacheCall for `size` (represents the length of the stream author addresses array)
-    this.contracts.dTokStreams.methods.size.cacheCall();
-    // Wait until the `size` data has been loaded by the cacheCall
-    await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.size["0x0"] !== undefined));
-    // Store the (now avaliable) `size` data into a variable
-    const size = this.props.dTokStreams.size["0x0"].value;
-    // Iterate over all of the stream author addresses in the addrLookUpTable
-    for (let i = 0; i < size; i++) {
-      // Make the cacheCall for each author address from the `addrLookUpTable` array
-      const authorAddrDataLocation = this.contracts.dTokStreams.methods.addrLookUpTable.cacheCall(i);
-      // Wait until the `addrLookUpTable` entry has been loaded by the cacheCall
-      await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation] !== undefined));
-      // Store the (now avaliable) `addrLookUpTable` entry data into a variable
-      const streamAuthorAddr = this.props.dTokStreams.addrLookUpTable[authorAddrDataLocation];
-      // Make the cacheCall for the stream data corrosponding to the author address from the current loop iteration
-      const streamDataAddr = this.contracts.dTokStreams.methods.streams.cacheCall(streamAuthorAddr.value);
-      // Wait until the `streams` entry has been loaded by the cacheCall
-      await this.waitUntilConditionalFuncTrueHelper(() => (this.props.dTokStreams.streams[streamDataAddr] !== undefined));
-      // Set the first stream processed as the default stream displayed
-      if (i === 0) {
-        // Store the stream (storage location) key to the component's state (for use displaying the streams dropdown)
-        this.setState({ currentStreamKey: streamDataAddr });
+  async updateAmountHandler(rawValue) {
+    const { balance } = this.props
+    let value = null, error = null
+    try {
+      value = Currency.DAI(rawValue)
+    } catch (e) {
+      error = e.message
+    }
+    if (value && value.wad.gt(balance.channel.token.wad)) {
+      error = `Invalid amount: must be less than your balance`
+    }
+    if (value && value.wad.lte(Zero)) {
+      error = "Invalid amount: must be greater than 0"
+    }
+    this.setState({
+      amount: {
+        display: rawValue,
+        error,
+        value: error ? null : value,
       }
-    }
+    })
   }
 
-  /*
-   * This is a simple stateless helper function that awaits until the provided function returns true.
-   */
-  async waitUntilConditionalFuncTrueHelper(checkConditional) {
-    // Define an async function for sleeping
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // Loop until the checkConditional functions results in a true condition
-    while (true) {
-      if (checkConditional()) { break; }
-      await sleep(100); // Sleep for 1/10 of a second
+  async updateRecipientHandler(rawValue) {
+    const xpubLen = 111
+    let value = null, error = null
+    value = rawValue
+    if (!value.startsWith('xpub')) {
+      error = "Invalid recipient: should start with xpub"
     }
-  }
-
-  chargeTheUserForViewing = async () => {
-    const { streamViewingEnabled } = this.state;
-
-    // Only bill the user if they are currently viewing the stream
-    if (streamViewingEnabled) {
-
-      // Set the price per minute
-      const pricePerMinute = "0.01";
-
-      // Set the amount to charge the user
-      await this.setState(oldState => {
-        oldState.paymentVal.payments[0].amountToken = Web3.utils.toWei(`${pricePerMinute}`, "ether");
-        return oldState;
-      });
-
-      // Set the address to send the money to on the hub
-      this.updateRecipientHandler("0xb939adca7cecd82dcfa20cb9d092a1d5efa31a58");
-
-      // Execute the payment
-      this.paymentHandler();
+    if (!error && value.length !== xpubLen) {
+      error = `Invalid recipient: expected ${xpubLen} characters, got ${value.length}`
     }
-  }
-
-  async updatePaymentHandler(value) {
-    // if there are more than 18 digits after the decimal, do not
-    // count them.
-    // throw a warning in the address error
-    let balanceError = null
-    const decimal = (
-      value.startsWith('.') ? value.substr(1) : value.split('.')[1]
-    )
-
-    let tokenVal = value
-    if (decimal && decimal.length > 18) {
-      tokenVal = value.startsWith('.') ? value.substr(0, 19) : value.split('.')[0] + '.' + decimal.substr(0, 18)
-      balanceError = `Value too precise! Using ${tokenVal}`
-    }
-    await this.setState(oldState => {
-      oldState.paymentVal.payments[0].amountToken = value
-        ? Web3.utils.toWei(`${tokenVal}`, "ether")
-        : "0";
-      if (balanceError) {
-        oldState.balanceError = balanceError;
+    this.setState({
+      recipient: {
+        display: rawValue,
+        error,
+        value: error ? null : value,
       }
-      return oldState;
-    });
-
-    this.setState({ displayVal: value, });
-  }
-
-  async updateRecipientHandler(value) {
-    this.setState(async oldState => {
-      oldState.paymentVal.payments[0].recipient = value;
-
-      return oldState;
-    });
-  }
-
-  // validates recipient and payment amount
-  // also sets the variables of these values in the state
-  // returns the values it sets, to prevent async weirdness
-  validatePaymentInput(paymentVal) {
-    const address = paymentVal.payments[0].recipient;
-    const payment = convertPayment("bn", paymentVal.payments[0]);
-    const { channelState } = this.props;
-    this.setState({ addressError: null, balanceError: null });
-
-    let balanceError = null
-    let addressError = null
-    // validate that the token amount is within bounds
-    if (payment.amountToken.gt(Big(channelState.balanceTokenUser))) {
-      balanceError = "Insufficient balance in channel";
-    }
-    if (payment.amountToken.lte(Big(0)) ) {
-      balanceError = "Please enter a payment amount above 0";
-    }
-
-    // validate recipient is valid address OR the empty address
-    // recipient address can be empty
-    const isValidRecipient = Web3.utils.isAddress(address) && (address !== emptyAddress);
-
-    if (!isValidRecipient) {
-      addressError = address + " is an invalid address";
-    }
-
-    this.setState({ balanceError, addressError });
-
-    return { balanceError, addressError };
+    })
   }
 
   async paymentHandler() {
-    const { connext } = this.props;
-    const { paymentVal } = this.state;
-    // check if the recipient needs collateral
-    const needsCollateral = await connext.recipientNeedsCollateral(
-      paymentVal.payments[0].recipient,
-      convertPayment("str", { amountWei: paymentVal.payments[0].amountWei, amountToken: paymentVal.payments[0].amountToken })
-    );
-    // do not send collateral request if it is not valid
-    // check if the values are reasonable
-    // before beginning the request for collateral
-    const { balanceError, addressError } = this.validatePaymentInput(
-      paymentVal
-    );
-    if (addressError || balanceError) {
-      return;
-    }
-
-    // needs collateral can indicate that the recipient does
-    // not have a channel, or that it does not have current funds
-    // in either case, you need to send a failed payment
-    // to begin auto collateralization process
-    if (needsCollateral) {
-      // this can have 3 potential outcomes:
-      // - collateralization failed (return)
-      // - payment succeeded (return)
-      // - channel collateralized
-      const collateralizationStatus = await this.collateralizeRecipient(
-        paymentVal
-      );
-      switch (collateralizationStatus) {
-        // setting state for these cases done in collateralize
-        case CollateralStates.PaymentMade:
-        case CollateralStates.Timeout:
-          return;
-        case CollateralStates.Success:
-        default:
-        // send payment via fall through
-      }
-    }
-
-    // send payment
-    await this._sendPayment(paymentVal);
-  }
-
-  async collateralizeRecipient(paymentVal) {
-    const { connext } = this.props;
-
-    // collateralize otherwise
-    this.setState({
-      paymentState: PaymentStates.Collateralizing,
-      showReceipt: true
-    });
-
-    // collateralize by sending payment
-    const err = await this._sendPayment(paymentVal, true);
-    // somehow it worked???
-    if (!err) {
-      this.setState({
-        showReceipt: true,
-        paymentState: PaymentStates.Success
-      });
-      return CollateralStates.PaymentMade;
-    }
-
-    // call to send payment failed, monitor collateral
-    // watch for confirmation on the recipients side
-    // of the channel for 20s
-    let needsCollateral
-    await interval(
-      async (iteration, stop) => {
-        // returns null if no collateral needed
-        needsCollateral = await connext.recipientNeedsCollateral(
-          paymentVal.payments[0].recipient,
-          convertPayment("str", paymentVal.payments[0].amount)
-        );
-        if (!needsCollateral || iteration > 20) {
-          stop();
-        }
-      },
-      5000,
-      { iterations: 20 }
-    );
-
-    if (needsCollateral) {
-      this.setState({
-        showReceipt: true,
-        paymentState: PaymentStates.CollateralTimeout
-      });
-      return CollateralStates.Timeout;
-    }
-
-    return CollateralStates.Success;
-  }
-
-  // returns a string if there was an error, null
-  // if successful
-  async _sendPayment(paymentVal, isCollateralizing = false) {
-    const { connext } = this.props;
-
-    const { balanceError, addressError } = this.validatePaymentInput(
-      paymentVal
-    );
-    // return if either errors exist
-    // state is set by validator
-    // mostly a sanity check, this should be done before calling
-    // this function
-    if (balanceError || addressError) {
-      return;
-    }
-
-    // collateralizing is handled before calling this send payment fn
-    // by payment you can call the appropriate type here
+    const { channel, token } = this.props;
+    const { amount, recipient } = this.state;
+    if (amount.error || recipient.error) return;
+    // TODO: check if recipient needs collateral & tell server to collateralize if more is needed
     try {
-      await connext.buy(paymentVal);
-      // display receipts
-      this.setState({
-        showReceipt: true,
-        paymentState: PaymentStates.Success
+      console.log(`Sending ${amount.value} to ${recipient.value}`);
+      await channel.transfer({
+        assetId: token.address,
+        amount: amount.value.toDEI().floor(),
+        recipient: recipient.value,
       });
-      return null;
+      this.setState({ showReceipt: true, paymentState: PaymentStates.Success });
     } catch (e) {
-      if (!isCollateralizing) {
-        // only assume errors if collateralizing
-        console.log("Unexpected error sending payment:", e);
-        this.setState({
-          paymentState: PaymentStates.OtherError,
-          showReceipt: true
-        });
-      }
-      // setting state for collateralize handled in 'collateralizeRecipient'
-      return e.message;
+      console.error(`Unexpected error sending payment: ${e.message}`);
+      console.error(e)
+      this.setState({ paymentState: PaymentStates.OtherError, showReceipt: true });
+    }
+  }
+
+  async linkHandler() {
+    const { channel, token } = this.props;
+    const { amount, recipient } = this.state;
+    if (amount.error || recipient.error) return;
+    if (toBN(amount.value.toDAI().wad).gt(LINK_LIMIT.wad)) {
+      this.setState(oldState => {
+        oldState.amount.error = `Linked payments are capped at ${LINK_LIMIT.format()}.`
+        return oldState
+      })
+      return
+    }
+    try {
+      console.log(`Creating ${amount.value} link payment`);
+      const link = await channel.conditionalTransfer({
+        assetId: token.address,
+        amount: amount.value.toDEI().floor(),
+        conditionType: "LINKED_TRANSFER",
+      });
+      console.log(`Created link payment: ${JSON.stringify(link, null, 2)}`);
+      console.log(`link params: secret=${link.preImage}&paymentId=${link.paymentId}&` +
+          `assetId=${token.address}&amount=${amount.value.amount}`)
+      this.props.history.push({
+        pathname: "/redeem",
+        search: `?secret=${link.preImage}&paymentId=${link.paymentId}&` +
+          `assetId=${token.address}&amount=${amount.value.amount}`,
+        state: { isConfirm: true, secret: link.preImage, amountToken: amount.value.amount },
+      });
+    } catch (e) {
+      console.log("Unexpected error sending payment:", e);
+      this.setState({ paymentState: PaymentStates.OtherError, showReceipt: true });
     }
   }
 
@@ -544,9 +184,13 @@ class StreamViewer extends Component {
     this.setState({ showReceipt: false, paymentState: PaymentStates.None });
   };
 
+
+
+
+
   render() {
     const { connextState, classes, dTokStreams } = this.props;
-    const { paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled, currentStreamKey } = this.state;
+    const { scan, amount, recipient, paymentState, paymentVal, showReceipt, sendError, streamViewingEnabled, currentStreamKey } = this.state;
 
     if (Object.keys(dTokStreams.streams).length < 1 || currentStreamKey === null) {
       return <div>No streams avaliable...</div>;
@@ -727,15 +371,151 @@ class StreamViewer extends Component {
   }
 }
 
-StreamViewer.contextTypes = {
-  drizzle: PropTypes.object,
-};
-
-const mapStateToProps = state => {
-  return {
-    drizzleStatus: state.drizzleStatus,
-    dTokStreams: state.contracts.dTokStreams
+function ConfirmationDialogText(paymentState, amountToken, recipient) {
+  switch (paymentState) {
+    case PaymentStates.Collateralizing:
+      return (
+        <Grid>
+          <DialogTitle disableTypography>
+            <Typography variant="h5" color="primary">
+              Payment In Progress
+            </Typography>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
+              Recipient's Card is being set up. This should take 20-30 seconds.
+            </DialogContentText>
+            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
+              If you stay on this page, your payment will be retried automatically.
+              If you navigate away or refresh the page, you will have to attempt the payment again yourself.
+            </DialogContentText>
+          <CircularProgress style={{ marginTop: "1em" }} />
+          </DialogContent>
+        </Grid>
+      );
+    case PaymentStates.CollateralTimeout:
+      return (
+        <Grid>
+          <DialogTitle disableTypography>
+            <Typography variant="h5" style={{ color: "#F22424" }}>
+            Payment Failed
+            </Typography>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
+            After some time, recipient channel could not be initialized.
+            </DialogContentText>
+            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
+            Is the receiver online to set up their Card? Please try your payment again later. If
+              you have any questions, please contact support. (Settings -->
+              Support)
+            </DialogContentText>
+          </DialogContent>
+        </Grid>
+      );
+    case PaymentStates.OtherError:
+      return (
+        <Grid>
+          <DialogTitle disableTypography>
+            <Typography variant="h5" style={{ color: "#F22424" }}>
+            Payment Failed
+            </Typography>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
+            An unknown error occured when making your payment.
+            </DialogContentText>
+            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
+            Please try again in 30s and contact support if you continue to
+              experience issues. (Settings --> Support)
+            </DialogContentText>
+          </DialogContent>
+        </Grid>
+      );
+    case PaymentStates.Success:
+      return (
+        <Grid>
+          <DialogTitle disableTypography>
+            <Typography variant="h5" style={{ color: "#009247" }}>
+            Payment Success!
+            </Typography>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText variant="body1" style={{ color: "#0F1012", margin: "1em" }}>
+            Amount: ${amountToken}
+            </DialogContentText>
+            <DialogContentText variant="body1" style={{ color: "#0F1012" }}>
+            To: {recipient.substr(0, 5)}...
+            </DialogContentText>
+          </DialogContent>
+        </Grid>
+      );
+    case PaymentStates.None:
+    default:
+      return <div />;
   }
 }
 
-export default withStyles(styles)(drizzleConnect(StreamViewer, mapStateToProps));
+function PaymentConfirmationDialog(props) {
+  return (
+    <Dialog
+      open={props.showReceipt}
+      onBackdropClick={
+        props.paymentState === PaymentStates.Collateralizing
+          ? null
+          : () => props.closeModal()
+      }
+      fullWidth
+      style={{
+        justifyContent: "center",
+        alignItems: "center",
+        textAlign: "center",
+      }}
+    >
+      <Grid
+        container
+        style={{
+          backgroundColor: "#FFF",
+          paddingTop: "10%",
+          paddingBottom: "10%"
+        }}
+        justify="center"
+      >
+        {ConfirmationDialogText(
+          props.paymentState,
+          props.amountToken,
+          props.recipient
+        )}
+        {props.paymentState === PaymentStates.Collateralizing ? (
+          <></>
+        ) : (
+          <DialogActions>
+            <Button
+              color="primary"
+              variant="outlined"
+              size="medium"
+              onClick={() => props.closeModal()}
+            >
+              Pay Again
+            </Button>
+            <Button
+              style={{
+                background: "#FFF",
+                border: "1px solid #F22424",
+                color: "#F22424",
+                marginLeft: "5%"
+              }}
+              variant="outlined"
+              size="medium"
+              onClick={() => props.history.push("/")}
+            >
+              Home
+            </Button>
+          </DialogActions>
+        )}
+      </Grid>
+    </Dialog>
+  );
+};
+
+export default withStyles(styles)(StreamViewer);

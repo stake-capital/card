@@ -24,6 +24,13 @@
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
 
+const seed =
+  process.env.SEED ||
+  "brand gallery sock inspire error kitten orphan arch unaware palace twin soft";
+
+var HDWalletProvider = require("truffle-hdwallet-provider");
+const fullPathBuildDirectory = `${__dirname}/src/build/contracts`;
+
 module.exports = {
   /**
    * Networks define how you connect to your ethereum client and let you set the
@@ -34,6 +41,8 @@ module.exports = {
    *
    * $ truffle test --network <network-name>
    */
+
+  contracts_build_directory: fullPathBuildDirectory,
 
   networks: {
     // Useful for testing. The `development` name is special - truffle uses it by default
@@ -46,6 +55,20 @@ module.exports = {
      host: "127.0.0.1",     // Localhost (default: none)
      port: 8545,            // Standard Ethereum port (default: none)
      network_id: "*",       // Any network (default: none)
+    },
+
+    rinkeby: {
+      provider: () =>
+        new HDWalletProvider(
+          seed,
+          "https://rinkeby.infura.io/v3/22218302c99b4ee29f8a5876ad0b552c"
+        ),
+      network_id: "4",
+      // See issues:
+      //   https://github.com/trufflesuite/truffle/issues/1612
+      //   https://github.com/trufflesuite/truffle/issues/1698
+      skipDryRun: true,
+      gasPrice: 50000000000
     },
 
     // Another network with more advanced options...
